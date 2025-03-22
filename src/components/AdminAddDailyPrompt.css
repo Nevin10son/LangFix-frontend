@@ -1,0 +1,225 @@
+/* Scoped styles for AdminAddDailyPrompt component with admin-prompt prefix */
+
+/* Page Container */
+.admin-prompt-page {
+  min-height: 100vh;
+  background-color: #fffacd; /* Light yellow */
+  padding: 2rem;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Header */
+.admin-prompt-header {
+  background-color: #daa520; /* Dark yellow */
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-bottom: 2rem;
+}
+
+.admin-prompt-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-prompt-header-icon {
+  font-size: 2rem;
+  color: #fff;
+}
+
+.admin-prompt-header-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-prompt-main-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1;
+}
+
+.admin-prompt-sub-title {
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: #f0e68c; /* Lighter yellow for contrast */
+  line-height: 1;
+}
+
+.admin-prompt-back-btn {
+  background: transparent;
+  border: 2px solid #f0e68c;
+  color: #f0e68c;
+  padding: 0.75rem 1.5rem;
+  border-radius: 30px;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.admin-prompt-back-btn:hover {
+  background-color: #f0e68c;
+  color: #daa520;
+}
+
+.admin-prompt-back-icon {
+  font-size: 1rem;
+}
+
+/* Content Container */
+.admin-prompt-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Section Styling */
+.admin-prompt-section {
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.admin-prompt-section-title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #b8860b; /* Darker yellow for contrast */
+  margin-bottom: 1.5rem;
+}
+
+/* Input Group */
+.admin-prompt-input-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+/* Modern Textarea */
+.admin-prompt-textarea {
+  flex: 1;
+  min-width: 300px;
+  min-height: 150px;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #f0e68c;
+  color: #b8860b;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  resize: vertical;
+  transition: all 0.3s ease;
+}
+
+.admin-prompt-textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(218, 165, 32, 0.3);
+}
+
+/* Button Styling */
+.admin-prompt-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #daa520;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-prompt-add-btn:hover {
+  background-color: #b8860b;
+}
+
+.admin-prompt-delete-btn {
+  background-color: #ffb90f;
+}
+
+.admin-prompt-delete-btn:hover {
+  background-color: #cd950c;
+}
+
+.admin-prompt-toggle-btn {
+  background-color: #ffd700;
+  margin-bottom: 1.5rem;
+  display: block;
+  width: fit-content;
+  margin-left: auto;
+}
+
+.admin-prompt-toggle-btn:hover {
+  background-color: #eec900;
+}
+
+.admin-prompt-btn-icon {
+  font-size: 1rem;
+}
+
+/* Prompt List */
+.admin-prompt-prompt-list {
+  list-style: none;
+  padding: 0;
+}
+
+.admin-prompt-prompt-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: #f0e68c;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.admin-prompt-prompt-item:hover {
+  background-color: #fffacd;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.admin-prompt-prompt-text {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #b8860b;
+  flex: 1;
+  padding-right: 1rem;
+}
+
+/* No Prompts Message */
+.admin-prompt-no-prompts {
+  font-size: 1.1rem;
+  color: #b8860b;
+  text-align: center;
+  padding: 1rem;
+}
+
+/* Notification Message */
+.admin-prompt-notification {
+  text-align: center;
+  padding: 1rem;
+  background-color: #f0e68c;
+  color: #b8860b;
+  border-radius: 8px;
+  margin-top: 1rem;
+  font-weight: 500;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,0 +1,85 @@
+.admin-letter-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    font-family: Arial, sans-serif;
+  }
+  
+  h1, h2 {
+    color: #333;
+  }
+  
+  .success-message {
+    color: green;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  
+  .input-section {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+  }
+  
+  input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  textarea {
+    height: 100px;
+    resize: vertical;
+  }
+  
+  button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  
+  button:hover {
+    background-color: #0056b3;
+  }
+  
+  .category-list, .letter-list {
+    list-style: none;
+    padding: 0;
+  }
+  
+  .category-list li, .letter-list li {
+    background: #f4f4f4;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .category-list li span {
+    cursor: pointer;
+    font-weight: bold;
+  }
+  
+  .delete-button {
+    background-color: #ff4d4d;
+  }
+  
+  .delete-button:hover {
+    background-color: #d63333;
+  }
+  

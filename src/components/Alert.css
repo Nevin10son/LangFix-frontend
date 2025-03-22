@@ -1,0 +1,61 @@
+.alert {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%); /* Centers horizontally */
+    padding: 12px 24px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: auto; /* Fits content */
+    max-width: 80vw; /* Limits width to 80% of viewport, reasonable cap */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    background-clip: padding-box;
+  }
+  
+  .alert.success {
+    background: linear-gradient(45deg, #48bb78, #68d391); /* Green gradient */
+    color: white;
+  }
+  
+  .alert.error {
+    background: linear-gradient(45deg, #f56565, #fc8181); /* Red gradient */
+    color: white;
+  }
+  
+  .alert.info {
+    background: linear-gradient(45deg, #4299e1, #63b3ed); /* Blue gradient */
+    color: white;
+  }
+  
+  .alert-symbol {
+    margin-right: 10px;
+    font-size: 16px;
+    font-weight: bold;
+  }
+  
+  .alert-message {
+    flex-grow: 1;
+    white-space: nowrap; /* Keeps text on one line */
+    /* Removed overflow: hidden and text-overflow: ellipsis to show full message */
+  }
+  
+  .alert-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
+    transition: opacity 0.3s;
+  }
+  
+  .alert-close:hover {
+    opacity: 0.7;
+  }

@@ -1,0 +1,217 @@
+/* Scoped styles for AdminErrorCorrection component with admin-error prefix */
+
+/* Page Container */
+.admin-error-page {
+  min-height: 100vh;
+  background-color: #e0ffff; /* Light cyan */
+  padding: 2rem;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Header */
+.admin-error-header {
+  background-color: #008b8b; /* Dark cyan */
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-bottom: 2rem;
+}
+
+.admin-error-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-error-header-icon {
+  font-size: 2rem;
+  color: #fff;
+}
+
+.admin-error-header-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-error-main-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1;
+}
+
+.admin-error-sub-title {
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: #b0e0e6; /* Lighter cyan for contrast */
+  line-height: 1;
+}
+
+.admin-error-back-btn {
+  background: transparent;
+  border: 2px solid #b0e0e6;
+  color: #b0e0e6;
+  padding: 0.75rem 1.5rem;
+  border-radius: 30px;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.admin-error-back-btn:hover {
+  background-color: #b0e0e6;
+  color: #008b8b;
+}
+
+.admin-error-back-icon {
+  font-size: 1rem;
+}
+
+/* Content Container */
+.admin-error-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Section Styling */
+.admin-error-section {
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.admin-error-section-title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #006666; /* Darker cyan for contrast */
+  margin-bottom: 1.5rem;
+}
+
+/* Input Group */
+.admin-error-input-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+/* Modern Textarea */
+.admin-error-textarea {
+  flex: 1;
+  min-width: 300px;
+  min-height: 150px;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #b0e0e6;
+  color: #006666;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  resize: vertical;
+  transition: all 0.3s ease;
+}
+
+.admin-error-textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 139, 139, 0.3);
+}
+
+/* Button Styling */
+.admin-error-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #008b8b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-error-add-btn:hover {
+  background-color: #006666;
+}
+
+.admin-error-delete-btn {
+  background-color: #20b2aa;
+}
+
+.admin-error-delete-btn:hover {
+  background-color: #1a8c83;
+}
+
+.admin-error-toggle-btn {
+  background-color: #48d1cc;
+  margin-bottom: 1.5rem;
+  display: block;
+  width: fit-content;
+  margin-left: auto;
+}
+
+.admin-error-toggle-btn:hover {
+  background-color: #40c4ff;
+}
+
+.admin-error-btn-icon {
+  font-size: 1rem;
+}
+
+/* Sentence List */
+.admin-error-sentence-list {
+  list-style: none;
+  padding: 0;
+}
+
+.admin-error-sentence-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: #b0e0e6;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.admin-error-sentence-item:hover {
+  background-color: #e0ffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.admin-error-sentence-item p {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #006666;
+  flex: 1;
+  padding-right: 1rem;
+}
+
+/* Notification Message */
+.admin-error-notification {
+  text-align: center;
+  padding: 1rem;
+  background-color: #b0e0e6;
+  color: #006666;
+  border-radius: 8px;
+  margin-top: 1rem;
+  font-weight: 500;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,0 +1,215 @@
+/* Scoped styles for AdminEssay component with admin-essay prefix */
+
+/* Page Container */
+.admin-essay-page {
+  min-height: 100vh;
+  background-color: #e0f2e9; /* Light pistachio green */
+  padding: 2rem;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Header */
+.admin-essay-header {
+  background-color: #6b9080; /* Dark pistachio color */
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.admin-essay-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-essay-header-icon {
+  font-size: 2rem;
+  color: #fff;
+}
+
+.admin-essay-header-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-essay-main-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1;
+}
+
+.admin-essay-sub-title {
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: #f0f7f4;
+  line-height: 1;
+}
+
+.admin-essay-back-btn {
+  background: transparent;
+  border: 2px solid #f0f7f4;
+  color: #f0f7f4;
+  padding: 0.75rem 1.5rem;
+  border-radius: 30px;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.admin-essay-back-btn:hover {
+  background-color: #f0f7f4;
+  color: #6b9080;
+}
+
+.admin-essay-back-icon {
+  font-size: 1rem;
+}
+
+/* Content Container */
+.admin-essay-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Section Styling */
+.admin-essay-section {
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.admin-essay-section-title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #2d6a4f; /* Darker green for contrast */
+  margin-bottom: 1.5rem;
+}
+
+/* Input Group */
+.admin-essay-input-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* Modern Input Field */
+.admin-essay-input {
+  flex: 1;
+  min-width: 250px;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #f0f7f4;
+  color: #2d6a4f;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.admin-essay-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(107, 144, 128, 0.3);
+}
+
+/* Modern Select Dropdown */
+.admin-essay-select {
+  flex: 1;
+  min-width: 250px;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #f0f7f4;
+  color: #2d6a4f;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%232d6a4f" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  transition: all 0.3s ease;
+}
+
+.admin-essay-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(107, 144, 128, 0.3);
+}
+
+/* Button Styling */
+.admin-essay-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #6b9080;
+  color: #fff;
+}
+
+.admin-essay-add-btn:hover {
+  background-color: #557a68;
+}
+
+.admin-essay-delete-btn {
+  background-color: #e63946;
+}
+
+.admin-essay-delete-btn:hover {
+  background-color: #d00000;
+}
+
+.admin-essay-toggle-btn {
+  background-color: #95c1a8;
+  margin-bottom: 1.5rem;
+  display: block;
+  width: fit-content;
+  margin-left: auto;
+}
+
+.admin-essay-toggle-btn:hover {
+  background-color: #7ea990;
+}
+
+/* Category and Topic Lists */
+.admin-essay-category-list,
+.admin-essay-topic-list {
+  list-style: none;
+  padding: 0;
+}
+
+.admin-essay-category-item,
+.admin-essay-topic-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f0f7f4;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.admin-essay-category-item:hover,
+.admin-essay-topic-item:hover {
+  background-color: #e0f2e9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.admin-essay-category-item span,
+.admin-essay-topic-item span {
+  font-size: 1.1rem;
+  color: #2d6a4f;
+}

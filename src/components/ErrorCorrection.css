@@ -1,0 +1,148 @@
+/* Container styling */
+.error-correction-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Title styling */
+.title {
+  font-size: 2.5rem;
+  color: #333;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* Sentence with error styling */
+.sentence {
+  font-size: 1.2rem;
+  color: #d32f2f; /* Red to indicate error */
+  line-height: 1.6;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Textarea styling */
+.text-editor {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  resize: vertical;
+  margin-bottom: 15px;
+  box-sizing: border-box;
+}
+
+.text-editor:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 5px rgba(33, 150, 243, 0.5);
+}
+
+/* Button container styling */
+.button-container {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+/* Submit button styling */
+.submit-button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  border-radius: 5px;
+  background-color: #4caf50; /* Green */
+  color: white;
+  transition: background-color 0.3s ease;
+}
+
+.submit-button:hover {
+  background-color: #45a049;
+}
+
+/* Analyze button styling */
+.analyze-button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  border-radius: 5px;
+  background-color: #2196f3; /* Blue */
+  color: white;
+  transition: background-color 0.3s ease;
+}
+
+.analyze-button:hover {
+  background-color: #1e87db;
+}
+
+/* Score feedback styling */
+.score-feedback {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f3e5f5; /* Light purple */
+  border: 1px solid #ce93d8;
+  border-radius: 5px;
+}
+
+.score-feedback h3 {
+  font-size: 1.5rem;
+  color: #9c27b0; /* Purple */
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.score-feedback p {
+  font-size: 1rem;
+  color: #555;
+  margin: 5px 0;
+}
+
+/* AI feedback styling */
+.ai-feedback {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #e8f5e9; /* Light green */
+  border: 1px solid #a5d6a7;
+  border-radius: 5px;
+}
+
+.ai-feedback h3 {
+  font-size: 1.5rem;
+  color: #4caf50; /* Green */
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.feedback-text {
+  font-size: 1rem;
+  color: #333;
+  margin: 5px 0;
+  line-height: 1.5;
+}
+
+/* Message styling */
+.message {
+  font-size: 1rem;
+  color: #d32f2f; /* Red for errors */
+  text-align: center;
+  margin-top: 15px;
+}
+
+/* Loading text styling */
+p {
+  font-size: 1.2rem;
+  color: #666;
+  text-align: center;
+}

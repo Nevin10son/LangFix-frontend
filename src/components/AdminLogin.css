@@ -1,0 +1,170 @@
+/* AdminLogin.css */
+.adminPage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f6f8ff;
+  background-image: 
+    radial-gradient(#e2e9ff 1px, transparent 1px),
+    radial-gradient(#e2e9ff 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+  font-family: 'Nunito', 'Segoe UI', sans-serif;
+}
+
+.adminLoginCard {
+  width: 380px;
+  padding: 35px 30px;
+  background-color: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(124, 154, 246, 0.15);
+  border: 2px solid #eaeeff;
+  transform: translateY(-5px);
+  transition: transform 0.3s, box-shadow 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.adminLoginCard:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 30px rgba(124, 154, 246, 0.2);
+}
+
+/* Cartoon-style decorative element */
+.adminLoginCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 8px;
+  background: linear-gradient(90deg, #6a8fff, #b57aff, #ff7eb3);
+}
+
+.adminHeader {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.adminTitle {
+  font-size: 28px;
+  color: #4a5568;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  position: relative;
+  padding-bottom: 12px;
+}
+
+.adminTitle::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(90deg, #6a8fff, #b57aff);
+  border-radius: 10px;
+}
+
+.adminError {
+  background-color: #fff2f2;
+  color: #e53e3e;
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 14px;
+  border-left: 4px solid #e53e3e;
+  animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+  40%, 60% { transform: translate3d(3px, 0, 0); }
+}
+
+.adminForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.adminInputGroup {
+  position: relative;
+}
+
+.adminInput {
+  width: 100%;
+  padding: 15px 16px;
+  border-radius: 12px;
+  border: 2px solid #eaeeff;
+  background-color: #f9faff;
+  font-size: 15px;
+  color: #4a5568;
+  transition: all 0.3s;
+  box-sizing: border-box;
+}
+
+.adminInput:focus {
+  outline: none;
+  border-color: #6a8fff;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(106, 143, 255, 0.15);
+}
+
+.adminInput::placeholder {
+  color: #a0aec0;
+}
+
+.adminButtonContainer {
+  margin-top: 10px;
+}
+
+.adminButton {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(45deg, #6a8fff, #b57aff);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(106, 143, 255, 0.3);
+}
+
+.adminButton:hover {
+  background: linear-gradient(45deg, #5a7fee, #a56aff);
+  box-shadow: 0 6px 15px rgba(106, 143, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+.adminButton:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(106, 143, 255, 0.3);
+}
+
+/* Adding a subtle cartoon-like appearance */
+@media (min-width: 768px) {
+  .adminLoginCard {
+    border-radius: 24px;
+  }
+  
+  .adminLoginCard::after {
+    content: "";
+    position: absolute;
+    bottom: -30px;
+    right: -30px;
+    width: 100px;
+    height: 100px;
+    background-color: rgba(190, 227, 248, 0.2);
+    border-radius: 50%;
+    z-index: -1;
+  }
+}

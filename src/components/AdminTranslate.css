@@ -1,0 +1,213 @@
+/* AdminTranslate.css */
+.admin-translation-container {
+  background-color: #fff0f5; /* Light pink background */
+  min-height: 100vh;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.admin-translation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+  border-bottom: 1px solid #ffd1dc;
+}
+
+.admin-translation-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-translation-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.admin-translation-add {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+
+.admin-translation-text {
+  font-size: 16px;
+  color: #666;
+}
+
+.admin-translation-home-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #fff;
+  border: 1px solid #ffb6c1;
+  color: #333;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-translation-home-btn:hover {
+  background-color: #ffb6c1;
+  color: #fff;
+}
+
+.admin-translation-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.admin-translation-success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.admin-translation-textarea {
+  width: 100%;
+  height: 150px;
+  padding: 15px;
+  border: 2px solid #ffb6c1;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  font-size: 16px;
+  resize: vertical;
+  background-color: #fff;
+}
+
+.admin-translation-textarea:focus {
+  outline: none;
+  border-color: #ff8da1;
+  box-shadow: 0 0 0 3px rgba(255, 182, 193, 0.25);
+}
+
+.admin-translation-add-btn {
+  background-color: #ffb6c1;
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: block;
+  margin: 0 auto 30px;
+}
+
+.admin-translation-add-btn:hover {
+  background-color: #ff8da1;
+}
+
+.admin-translation-show-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  color: #555;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 20px auto;
+  transition: all 0.2s ease;
+}
+
+.admin-translation-show-btn:hover {
+  background-color: #e9ecef;
+  border-color: #ced4da;
+}
+
+.admin-translation-texts {
+  margin-top: 30px;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.admin-translation-texts h2 {
+  color: #333;
+  font-size: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ffd1dc;
+}
+
+.admin-translation-no-texts {
+  text-align: center;
+  color: #6c757d;
+  padding: 20px;
+  font-style: italic;
+}
+
+.admin-translation-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.admin-translation-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #ffd1dc;
+}
+
+.admin-translation-item:last-child {
+  border-bottom: none;
+}
+
+.admin-translation-item-text {
+  flex: 1;
+  margin-right: 15px;
+}
+
+.admin-translation-delete-btn {
+  background-color: #ffc7d0;
+  color: #333;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-translation-delete-btn:hover {
+  background-color: #ff8da1;
+  color: #fff;
+}
+
+/* Ensuring the styles are scoped to this component */
+/* Add media queries for responsiveness */
+
+@media (max-width: 768px) {
+  .admin-translation-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .admin-translation-home-btn {
+    align-self: flex-end;
+  }
+  
+  .admin-translation-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .admin-translation-delete-btn {
+    align-self: flex-end;
+  }
+}
