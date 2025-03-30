@@ -91,7 +91,6 @@
   color: #aaa;
 }
 
-.journal-calendar-toggle, 
 .journal-theme-toggle {
   display: flex;
   align-items: center;
@@ -104,75 +103,107 @@
   font-weight: 500;
 }
 
-.journal-calendar-toggle:hover, 
 .journal-theme-toggle:hover {
   background-color: #f0f2f5;
 }
 
-.dark-mode .journal-calendar-toggle:hover, 
 .dark-mode .journal-theme-toggle:hover {
   background-color: #2a2a2a;
 }
 
+/* Enhanced Calendar Container */
+.journal-calendar-container {
+  margin: 1rem 0;
+}
+
+/* Enhanced Calendar Styles */
 .journal-calendar {
   background-color: #fff;
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  margin-top: 0.5rem;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  animation: calendarFadeIn 0.3s ease-in-out;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  border: 1px solid #eaeaea;
 }
 
 .dark-mode .journal-calendar {
-  background-color: #2a2a2a;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background-color: #2d2d2d;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  border-color: #444;
+}
+
+@keyframes calendarFadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .journal-calendar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dark-mode .journal-calendar-header {
+  border-bottom-color: #444;
 }
 
 .journal-calendar-header h4 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
+  color: #333;
+}
+
+.dark-mode .journal-calendar-header h4 {
+  color: #e0e0e0;
 }
 
 .journal-calendar-nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: none;
+  background: #f8f9fa;
   border: none;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  color: #555;
 }
 
 .journal-calendar-nav:hover {
-  background-color: #f0f2f5;
+  background-color: #e6e6e6;
+  transform: translateY(-2px);
+}
+
+.dark-mode .journal-calendar-nav {
+  background-color: #3a3a3a;
+  color: #ccc;
 }
 
 .dark-mode .journal-calendar-nav:hover {
-  background-color: #333;
+  background-color: #4a4a4a;
 }
 
 .journal-calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  text-align: center;
 }
 
 .journal-calendar-weekdays span {
-  text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: #666;
-  padding: 0.25rem 0;
+  color: #888;
+  padding: 0.5rem 0;
+  text-transform: uppercase;
 }
 
 .dark-mode .journal-calendar-weekdays span {
@@ -182,100 +213,136 @@
 .journal-calendar-week {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  gap: 5px;
+  margin-bottom: 5px;
 }
 
 .journal-calendar-day {
   aspect-ratio: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
-  border-radius: 4px;
+  font-size: 0.85rem;
+  border-radius: 6px;
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  padding: 4px;
+  background-color: #f8f9fa;
+  border: 1px solid transparent;
 }
 
-.journal-calendar-day:hover {
-  background-color: #f0f2f5;
+.journal-calendar-day:hover:not(.journal-calendar-inactive):not(.journal-calendar-future) {
+  background-color: #e9ecef;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.dark-mode .journal-calendar-day:hover {
+.dark-mode .journal-calendar-day {
   background-color: #333;
 }
 
+.dark-mode .journal-calendar-day:hover:not(.journal-calendar-inactive):not(.journal-calendar-future) {
+  background-color: #444;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
 .journal-calendar-inactive {
-  color: #ccc;
+  color: #bbb;
+  background-color: #f0f0f0;
+  cursor: default;
 }
 
 .dark-mode .journal-calendar-inactive {
-  color: #555;
+  color: #666;
+  background-color: #2a2a2a;
+}
+
+.journal-calendar-future {
+  color: #bbb;
+  cursor: not-allowed;
+  background-color: #f5f5f5;
+}
+
+.dark-mode .journal-calendar-future {
+  color: #666;
+  background-color: #2a2a2a;
 }
 
 .journal-calendar-today {
   background-color: #e6f7ff;
+  border: 1px solid #91d5ff;
   font-weight: 600;
+  color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
 }
 
 .dark-mode .journal-calendar-today {
-  background-color: #1a3a4a;
+  background-color: #1f3a56;
+  border-color: #1890ff;
+  color: #69c0ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.25);
 }
 
 .journal-calendar-selected {
-  background-color: #1890ff !important;
-  color: white !important;
+  border: 2px solid #1890ff;
+  font-weight: 600;
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
 }
 
-.journal-calendar-completed {
+.calendar-day-number {
+  z-index: 2;
   position: relative;
+  margin-bottom: 4px;
 }
 
-.journal-completed-icon {
+/* Day indicators */
+.journal-day-completed {
+  width: 16px;
+  height: 16px;
+  background-color: #52c41a;
   position: absolute;
-  bottom: 2px;
-  right: 2px;
-  color: #52c41a;
+  bottom: 4px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
 }
 
-.dark-mode .journal-completed-icon {
-  color: #73d13d;
+.journal-day-pending {
+  width: 16px;
+  height: 16px;
+  background-color: #ffd666;
+  position: absolute;
+  bottom: 4px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
 }
 
-.journal-font-selector {
+.journal-day-selected {
+  width: 16px;
+  height: 16px;
+  background-color: #1890ff;
+  position: absolute;
+  bottom: 4px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.journal-calendar-day:hover .journal-day-completed,
+.journal-calendar-day:hover .journal-day-pending,
+.journal-calendar-day:hover .journal-day-selected {
+  transform: scale(1.1);
+}
+
+.journal-theme-toggle {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.journal-font-selector label {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #666;
-}
-
-.dark-mode .journal-font-selector label {
-  color: #aaa;
-}
-
-.journal-font-selector select {
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #d9d9d9;
-  background-color: #fff;
-  font-size: 0.9rem;
-  color: #333;
-  cursor: pointer;
-}
-
-.dark-mode .journal-font-selector select {
-  background-color: #333;
-  border-color: #444;
-  color: #e0e0e0;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: auto;
+  margin-bottom: 1rem;
 }
 
 .journal-home-button {
-  margin-top: auto;
   padding: 0.75rem 1rem;
   background-color: #1890ff;
   color: white;
@@ -285,6 +352,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  text-align: center;
 }
 
 .journal-home-button:hover {
@@ -431,6 +499,7 @@
 .journal-textarea {
   width: 100%;
   min-height: 120px;
+  max-height: 300px; /* Set a max height */
   padding: 1rem;
   border: 1px solid #d9d9d9;
   border-radius: 8px;
@@ -440,6 +509,9 @@
   color: #333;
   background-color: #fff;
   transition: border-color 0.3s, box-shadow 0.3s;
+  font-family: inherit; /* Use the default font */
+  box-sizing: border-box; /* Include padding and border in the element's width and height */
+  overflow-y: auto; /* Add scrollbar when content exceeds the height */
 }
 
 .journal-textarea:focus {
@@ -899,10 +971,7 @@
   }
   
   .journal-calendar {
-    position: absolute;
-    z-index: 10;
-    width: 300px;
-    right: 1rem;
+    width: 100%;
   }
   
   .journal-content {

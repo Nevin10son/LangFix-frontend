@@ -16,13 +16,17 @@ import {
   Settings,
   User,
   Moon,
-  Sun
+  Sun,
+  ChevronUp
 } from "lucide-react";
 import "./Diary.css";
 
 const Diary = () => {
   const navigate = useNavigate();
-  const today = new Date().toISOString().split("T")[0];
+  // Fix date timezone issues by setting the hours to 12 (mid-day) before converting to ISO string
+  const todayTemp = new Date();
+  todayTemp.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+  const today = todayTemp.toISOString().split("T")[0];
   const [selectedDate, setSelectedDate] = useState(today);
   const [entry, setEntry] = useState({
     gratitude: "",
@@ -38,23 +42,9 @@ const Diary = () => {
   const [vocabFeedback, setVocabFeedback] = useState({});
   const [scoreFeedback, setScoreFeedback] = useState({});
   const [completedDates, setCompletedDates] = useState([]);
-  const [selectedFont, setSelectedFont] = useState("Inter");
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [calendarVisible, setCalendarVisible] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const token = sessionStorage.getItem("token");
-
-  // Available fonts
-  const fontOptions = [
-    "Inter", 
-    "Roboto", 
-    "Montserrat", 
-    "Playfair Display", 
-    "Lora",
-    "Open Sans",
-    "Source Serif Pro",
-    "Merriweather"
-  ];
 
   useEffect(() => {
     verifyToken();
@@ -106,7 +96,10 @@ const Diary = () => {
     
     // Get first day of the month
     const firstDay = new Date(year, month, 1);
+    firstDay.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+    
     const lastDay = new Date(year, month + 1, 0);
+    lastDay.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
     
     const days = [];
     const dayOfWeek = firstDay.getDay();
@@ -114,6 +107,7 @@ const Diary = () => {
     // Add previous month days
     for (let i = dayOfWeek; i > 0; i--) {
       const prevDate = new Date(year, month, 1 - i);
+      prevDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
       days.push({
         date: prevDate,
         isCurrentMonth: false,
@@ -124,6 +118,7 @@ const Diary = () => {
     // Add current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const currentDate = new Date(year, month, i);
+      currentDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
       days.push({
         date: currentDate,
         isCurrentMonth: true,
@@ -136,6 +131,7 @@ const Diary = () => {
     if (remainingDays < 7) {
       for (let i = 1; i <= remainingDays; i++) {
         const nextDate = new Date(year, month + 1, i);
+        nextDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
         days.push({
           date: nextDate,
           isCurrentMonth: false,
@@ -506,21 +502,42 @@ const Diary = () => {
     );
   };
 
+  // Check if date has entry in completedDates array
   const isDateCompleted = (dateString) => {
     return completedDates.includes(dateString);
   };
 
+  // Check if date is the current viewing date
+  const isSelectedDate = (dateString) => {
+    return dateString === selectedDate;
+  };
+
+  // Check if date is today
+  const isToday = (dateString) => {
+    return dateString === today;
+  };
+
+  // Get month and year display for calendar header
   const getMonthName = (date) => {
     return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date);
   };
 
+  // Toggle dark mode
   const toggleTheme = () => {
     setIsDarkMode(prev => !prev);
     document.body.className = !isDarkMode ? "dark-theme" : "";
   };
 
+  // Handle date click in calendar
+  const handleDateClick = (dateString, isPastOrToday) => {
+    if (isPastOrToday) {
+      setSelectedDate(dateString);
+    }
+  };
+
+  // Generate calendar grid
   const calendarWeeks = getCalendarDays();
-  const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
     <div className={`journal-container ${isDarkMode ? 'dark-mode' : ''}`}>
@@ -535,12 +552,8 @@ const Diary = () => {
           <p>{new Date(selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
         </div>
         
-        <div className="journal-calendar-toggle" onClick={() => setCalendarVisible(!calendarVisible)}>
-          <Calendar size={18} />
-          <span>Select Date</span>
-        </div>
-        
-        {calendarVisible && (
+        {/* Always visible enhanced calendar */}
+        <div className="journal-calendar-container">
           <div className="journal-calendar">
             <div className="journal-calendar-header">
               <button onClick={() => changeMonth(-1)} className="journal-calendar-nav">
@@ -562,27 +575,27 @@ const Diary = () => {
               {calendarWeeks.map((week, weekIndex) => (
                 <div key={weekIndex} className="journal-calendar-week">
                   {week.map((day, dayIndex) => {
-                    const isToday = day.dateString === today;
-                    const isSelected = day.dateString === selectedDate;
+                    const isTodayDate = isToday(day.dateString);
+                    const isSelected = isSelectedDate(day.dateString);
                     const isCompleted = isDateCompleted(day.dateString);
+                    const isPastOrToday = new Date(day.dateString) <= new Date(today);
+                    
+                    let dayClass = "journal-calendar-day";
+                    if (!day.isCurrentMonth) dayClass += " journal-calendar-inactive";
+                    if (isTodayDate) dayClass += " journal-calendar-today";
+                    if (isSelected) dayClass += " journal-calendar-selected";
+                    if (!isPastOrToday) dayClass += " journal-calendar-future";
                     
                     return (
                       <div 
                         key={dayIndex}
-                        className={`journal-calendar-day 
-                          ${!day.isCurrentMonth ? 'journal-calendar-inactive' : ''} 
-                          ${isToday ? 'journal-calendar-today' : ''} 
-                          ${isSelected ? 'journal-calendar-selected' : ''}
-                          ${isCompleted ? 'journal-calendar-completed' : ''}`}
-                        onClick={() => {
-                          if (day.date <= new Date(today)) {
-                            setSelectedDate(day.dateString);
-                            setCalendarVisible(false);
-                          }
-                        }}
+                        className={dayClass}
+                        onClick={() => handleDateClick(day.dateString, isPastOrToday)}
                       >
-                        {day.date.getDate()}
-                        {isCompleted && <CheckCircle className="journal-completed-icon" size={10} />}
+                        <span className="calendar-day-number">{day.date.getDate()}</span>
+                        {isCompleted && <div className="journal-day-completed"></div>}
+                        {!isCompleted && isPastOrToday && !isSelected && <div className="journal-day-pending"></div>}
+                        {isSelected && <div className="journal-day-selected"></div>}
                       </div>
                     );
                   })}
@@ -590,19 +603,6 @@ const Diary = () => {
               ))}
             </div>
           </div>
-        )}
-        
-        <div className="journal-font-selector">
-          <label htmlFor="font-select">Font Style</label>
-          <select 
-            id="font-select" 
-            value={selectedFont} 
-            onChange={(e) => setSelectedFont(e.target.value)}
-          >
-            {fontOptions.map(font => (
-              <option key={font} value={font}>{font}</option>
-            ))}
-          </select>
         </div>
         
         <div className="journal-theme-toggle" onClick={toggleTheme}>
@@ -644,7 +644,6 @@ const Diary = () => {
                   value={promptResponses[promptId] || ""}
                   onChange={(e) => handlePromptChange(promptId, e.target.value)}
                   placeholder="Write your response..."
-                  style={{ fontFamily: selectedFont }}
                   spellCheck="false"
                 ></textarea>
                 
@@ -710,7 +709,6 @@ const Diary = () => {
                 value={entry.gratitude} 
                 onChange={handleChange} 
                 placeholder="What are you grateful for today?" 
-                style={{ fontFamily: selectedFont }}
                 spellCheck="false"
               ></textarea>
               
@@ -768,7 +766,6 @@ const Diary = () => {
                 value={entry.improvement} 
                 onChange={handleChange} 
                 placeholder="What would you like to improve?" 
-                style={{ fontFamily: selectedFont }}
                 spellCheck="false"
               ></textarea>
               
@@ -826,7 +823,6 @@ const Diary = () => {
                 value={entry.goals} 
                 onChange={handleChange} 
                 placeholder="What are your goals for tomorrow?" 
-                style={{ fontFamily: selectedFont }}
                 spellCheck="false"
               ></textarea>
               
@@ -884,7 +880,6 @@ const Diary = () => {
                 value={entry.narrative} 
                 onChange={handleChange} 
                 placeholder="Write about your day..." 
-                style={{ fontFamily: selectedFont }}
                 spellCheck="false"
               ></textarea>
               
@@ -930,11 +925,11 @@ const Diary = () => {
               )}
             </div>
           </div>
-          
-          <button className="journal-save-button" onClick={submitDiary}>
-            Save Journal Entry
-          </button>
         </div>
+        
+        <button className="journal-save-button" onClick={submitDiary}>
+          Save Journal Entry
+        </button>
       </div>
     </div>
   );

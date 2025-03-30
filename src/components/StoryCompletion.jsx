@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Save, Brain, Book, ArrowLeft, Clock, Play, History, FileText, Award, AlertCircle,  CheckCircle } from "lucide-react";
-import './StoryCompletion.css'
+import { 
+  BookOpen, Save, Brain, Book, ArrowLeft, Clock, Play, History, 
+  FileText, Award, AlertCircle, CheckCircle, Edit, MessageSquare, Star 
+} from "lucide-react";
+import './StoryCompletion.css';
 
 export default function StoryCompletion() {
   const [story, setStory] = useState(null);
@@ -16,6 +19,7 @@ export default function StoryCompletion() {
   const [isRunning, setIsRunning] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [activeTab, setActiveTab] = useState("current");
+  const [activeFeedbackTab, setActiveFeedbackTab] = useState("write");
   const [pastStories, setPastStories] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -81,6 +85,7 @@ export default function StoryCompletion() {
       setTimer(15 * 60); // Reset to 15 minutes
       setIsRunning(false);
       setMessage("");
+      setActiveFeedbackTab("write");
     } catch (error) {
       console.error("Error fetching story question", error);
       showMessage("Failed to load story.", "error");
@@ -98,14 +103,29 @@ export default function StoryCompletion() {
   const fetchPastStories = async () => {
     setIsLoading(true);
     try {
+      const userId = sessionStorage.getItem("userid");
+      const token = sessionStorage.getItem("token");
+      
+      if (!userId || !token) {
+        showMessage("Authentication error. Please log in again.", "error");
+        navigate("/login");
+        return;
+      }
+      
       const response = await axios.get("http://localhost:5000/user-stories", {
-        headers: { token: sessionStorage.getItem("token") },
-        params: { userId: sessionStorage.getItem("userid") }
+        headers: { token },
+        params: { userId }
       });
+      
       setPastStories(response.data);
+      
+      if (response.data.length === 0) {
+        showMessage("You don't have any past story submissions yet.", "info");
+      }
     } catch (error) {
-      console.error("Error fetching past stories", error);
-      showMessage("Failed to load past stories.", "error");
+      console.error("Error fetching past stories:", error);
+      const errorMessage = error.response?.data?.message || "Server error";
+      showMessage(`Failed to load past stories: ${errorMessage}`, "error");
     } finally {
       setIsLoading(false);
     }
@@ -117,6 +137,11 @@ export default function StoryCompletion() {
     if (tab === "past") {
       fetchPastStories();
     }
+  };
+
+  // Change active feedback tab
+  const handleFeedbackTabChange = (tab) => {
+    setActiveFeedbackTab(tab);
   };
 
   // Submit the user's completed story to the database
@@ -170,6 +195,7 @@ export default function StoryCompletion() {
       if (response.data.Status === "Success") {
         setStoryFeedback(response.data);
         showMessage("Story analysis completed!", "success");
+        setActiveFeedbackTab("analyze");
       } else {
         showMessage("Failed to analyze story: " + response.data.message, "error");
       }
@@ -198,6 +224,7 @@ export default function StoryCompletion() {
       if (response.data.Status === "Success") {
         setVocabFeedback(response.data.feedback);
         showMessage("Vocabulary enhancement completed!", "success");
+        setActiveFeedbackTab("vocab");
       } else {
         showMessage("Failed to enhance vocabulary: " + response.data.error, "error");
       }
@@ -229,6 +256,7 @@ export default function StoryCompletion() {
       if (response.data.Status === "Success") {
         setScoreResult(response.data.feedback);
         showMessage("Story scoring completed!", "success");
+        setActiveFeedbackTab("score");
       } else {
         showMessage("Failed to score: " + (response.data.message || "Unknown error"), "error");
       }
@@ -326,71 +354,244 @@ export default function StoryCompletion() {
               </div>
             </div>
 
-            <h2 className="prompt-title">{story.title}</h2>
-            <div className="prompt-card">
-              <p className="prompt-text">{story.storyText}</p>
+            {/* Feedback Tabs */}
+            <div className="feedback-tabs-container">
+              <button 
+                className={`feedback-tab ${activeFeedbackTab === "write" ? "active-feedback-tab" : ""}`}
+                onClick={() => handleFeedbackTabChange("write")}
+              >
+                <Edit size={16} />
+                Write
+              </button>
+              {storyFeedback && (
+                <button 
+                  className={`feedback-tab ${activeFeedbackTab === "analyze" ? "active-feedback-tab" : ""}`}
+                  onClick={() => handleFeedbackTabChange("analyze")}
+                >
+                  <Brain size={16} />
+                  Analysis
+                </button>
+              )}
+              {vocabFeedback && (
+                <button 
+                  className={`feedback-tab ${activeFeedbackTab === "vocab" ? "active-feedback-tab" : ""}`}
+                  onClick={() => handleFeedbackTabChange("vocab")}
+                >
+                  <Book size={16} />
+                  Vocabulary
+                </button>
+              )}
+              {scoreResult && (
+                <button 
+                  className={`feedback-tab ${activeFeedbackTab === "score" ? "active-feedback-tab" : ""}`}
+                  onClick={() => handleFeedbackTabChange("score")}
+                >
+                  <Star size={16} />
+                  Score
+                </button>
+              )}
             </div>
 
-            {!isRunning ? (
-              <div className="start-container">
-                <button className="start-button" onClick={startExercise}>
-                  <Play size={16} />
-                  Start Writing
-                </button>
-                <p className="start-instruction">
-                  Click the button above to begin the exercise. You'll have 15 minutes to complete the story.
-                </p>
-              </div>
-            ) : (
+            {/* Writing Tab Content */}
+            {activeFeedbackTab === "write" && (
               <>
-                <textarea
-                  className="story-textarea"
-                  value={completedStory}
-                  onChange={(e) => setCompletedStory(e.target.value)}
-                  placeholder="Continue the story here..."
-                  disabled={!isRunning || timer === 0}
-                  spellCheck={true}
-                />
-
-                <div className="action-buttons">
-                  <button 
-                    className="submit-button" 
-                    onClick={submitCompletedStory}
-                    disabled={!completedStory.trim()}
-                  >
-                    <Save size={16} />
-                    Submit
-                  </button>
-                  <button 
-                    className="analyze-button" 
-                    onClick={analyzeWithAI}
-                    disabled={!completedStory.trim()}
-                  >
-                    <Brain size={16} />
-                    Analyze
-                  </button>
-                  <button 
-                    className="enhance-button" 
-                    onClick={enhanceVocabulary}
-                    disabled={!completedStory.trim()}
-                  >
-                    <Book size={16} />
-                    Enhance
-                  </button>
-                  <button 
-                    className="score-button" 
-                    onClick={scoreStory}
-                    disabled={!completedStory.trim()}
-                  >
-                    <Award size={16} />
-                    Score
-                  </button>
+                <h2 className="prompt-title">{story.title}</h2>
+                <div className="prompt-card">
+                  <p className="prompt-text">{story.storyText}</p>
                 </div>
+
+                {!isRunning ? (
+                  <div className="start-container">
+                    <button className="start-button" onClick={startExercise}>
+                      <Play size={16} />
+                      Start Writing
+                    </button>
+                    <p className="start-instruction">
+                      Click the button above to begin the exercise. You'll have 15 minutes to complete the story.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      className="story-textarea"
+                      value={completedStory}
+                      onChange={(e) => setCompletedStory(e.target.value)}
+                      placeholder="Continue the story here..."
+                      disabled={!isRunning || timer === 0}
+                      spellCheck={true}
+                    />
+
+                    <div className="action-buttons">
+                      <button 
+                        className="submit-button" 
+                        onClick={submitCompletedStory}
+                        disabled={!completedStory.trim()}
+                      >
+                        <Save size={16} />
+                        Submit
+                      </button>
+                      <button 
+                        className="analyze-button" 
+                        onClick={analyzeWithAI}
+                        disabled={!completedStory.trim()}
+                      >
+                        <Brain size={16} />
+                        Analyze
+                      </button>
+                      <button 
+                        className="enhance-button" 
+                        onClick={enhanceVocabulary}
+                        disabled={!completedStory.trim()}
+                      >
+                        <Book size={16} />
+                        Enhance
+                      </button>
+                      <button 
+                        className="score-button" 
+                        onClick={scoreStory}
+                        disabled={!completedStory.trim()}
+                      >
+                        <Award size={16} />
+                        Score
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             )}
 
-            {/* Score Feedback */}
-            {scoreResult && (
+            {/* Analysis Tab Content */}
+            {activeFeedbackTab === "analyze" && storyFeedback && (
+              <div className="feedback-section story-analysis">
+                <h3 className="feedback-title">
+                  <Brain size={20} className="feedback-icon" /> 
+                  Story Analysis
+                </h3>
+                {storyFeedback.Status === "Success" ? (
+                  <>
+                    {/* Relevance Feedback */}
+                    <div className="relevance-section">
+                      <h4 className="section-subtitle">Coherence Check</h4>
+                      <div className="relevance-comparison">
+                        <div className="relevance-item">
+                          <h5>Original Story</h5>
+                          <p>{storyFeedback.feedback.relevance.originalStory}</p>
+                        </div>
+                        <div className="relevance-item">
+                          <h5>Your Continuation</h5>
+                          <p>{storyFeedback.feedback.relevance.completedStory}</p>
+                        </div>
+                      </div>
+                      <div className="relevance-result">
+                        <strong>Analysis:</strong> {storyFeedback.feedback.relevance.result}
+                      </div>
+                    </div>
+
+                    {/* Grammar Feedback */}
+                    <div className="grammar-section">
+                      <h4 className="section-subtitle">Grammar Corrections</h4>
+                      {storyFeedback.feedback.grammar.map((sentence, index) => (
+                        <div key={index} className="feedback-item">
+                          <div className="feedback-columns">
+                            <div className="original-text">
+                              <h5>Original</h5>
+                              <p>{sentence.original}</p>
+                            </div>
+                            <div className="corrected-text">
+                              <h5>Corrected</h5>
+                              <p>{sentence.corrected}</p>
+                            </div>
+                          </div>
+                          <div className="issues-explanation">
+                            <h5>Issues</h5>
+                            {sentence.issues.length === 1 && sentence.issues[0] === "No grammar mistakes found." ? (
+                              <div className="no-issues">
+                                <CheckCircle size={16} />
+                                <span>No grammar mistakes found</span>
+                              </div>
+                            ) : (
+                              <ul className="issues-list">
+                                {sentence.issues.map((issue, i) => (
+                                  <li key={i}>{issue}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                          {index < storyFeedback.feedback.grammar.length - 1 && (
+                            <hr className="feedback-divider" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="error-message">
+                    <AlertCircle size={20} />
+                    <p>{storyFeedback.message}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Vocabulary Tab Content */}
+            {activeFeedbackTab === "vocab" && vocabFeedback && (
+              <div className="feedback-section vocab-enhancement">
+                <h3 className="feedback-title">
+                  <Book size={20} className="feedback-icon" /> 
+                  Vocabulary Enhancement
+                </h3>
+                {vocabFeedback.map((sentence, index) => (
+                  <div key={index} className="feedback-item">
+                    <div className="feedback-columns">
+                      <div className="original-text">
+                        <h5>Original</h5>
+                        <p>{sentence.original}</p>
+                      </div>
+                      <div className="enhanced-text">
+                        <h5>Enhanced</h5>
+                        <p>{sentence.enhanced}</p>
+                      </div>
+                    </div>
+                    <div className="vocab-details">
+                      <div className="replaced-explanation">
+                        <h5>Replaced Words</h5>
+                        {sentence.replaced === "No enhancement needed" || sentence.replaced === "No enhancement or correction needed" ? (
+                          <div className="no-issues">
+                            <CheckCircle size={16} />
+                            <span>No enhancement needed</span>
+                          </div>
+                        ) : (
+                          <ul className="replaced-list">
+                            {sentence.replaced.split(", ").map((replacement, i) => (
+                              <li key={i}>{replacement}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="meaning-explanation">
+                        <h5>Word Meanings</h5>
+                        {sentence.meanings === "No enhancement needed" || sentence.meanings === "No enhancement or correction needed" ? (
+                          <div className="no-issues">
+                            <CheckCircle size={16} />
+                            <span>No enhancement needed</span>
+                          </div>
+                        ) : (
+                          <ul className="meanings-list">
+                            {sentence.meanings.split(", ").map((meaning, i) => (
+                              <li key={i}>{meaning}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                    {index < vocabFeedback.length - 1 && <hr className="feedback-divider" />}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Score Tab Content */}
+            {activeFeedbackTab === "score" && scoreResult && (
               <div className="feedback-section score-feedback">
                 <h3 className="feedback-title">
                   <Award size={20} className="feedback-icon" /> 
@@ -483,136 +684,6 @@ export default function StoryCompletion() {
                 </div>
               </div>
             )}
-
-            {/* Story Feedback (Relevance and Grammar) */}
-            {storyFeedback && (
-              <div className="feedback-section story-analysis">
-                <h3 className="feedback-title">
-                  <Brain size={20} className="feedback-icon" /> 
-                  Story Analysis
-                </h3>
-                {storyFeedback.Status === "Success" ? (
-                  <>
-                    {/* Relevance Feedback */}
-                    <div className="relevance-section">
-                      <h4 className="section-subtitle">Coherence Check</h4>
-                      <div className="relevance-comparison">
-                        <div className="relevance-item">
-                          <h5>Original Story</h5>
-                          <p>{storyFeedback.feedback.relevance.originalStory}</p>
-                        </div>
-                        <div className="relevance-item">
-                          <h5>Your Continuation</h5>
-                          <p>{storyFeedback.feedback.relevance.completedStory}</p>
-                        </div>
-                      </div>
-                      <div className="relevance-result">
-                        <strong>Analysis:</strong> {storyFeedback.feedback.relevance.result}
-                      </div>
-                    </div>
-
-                    {/* Grammar Feedback */}
-                    <div className="grammar-section">
-                      <h4 className="section-subtitle">Grammar Corrections</h4>
-                      {storyFeedback.feedback.grammar.map((sentence, index) => (
-                        <div key={index} className="feedback-item">
-                          <div className="feedback-columns">
-                            <div className="original-text">
-                              <h5>Original</h5>
-                              <p>{sentence.original}</p>
-                            </div>
-                            <div className="corrected-text">
-                              <h5>Corrected</h5>
-                              <p>{sentence.corrected}</p>
-                            </div>
-                          </div>
-                          <div className="issues-explanation">
-                            <h5>Issues</h5>
-                            {sentence.issues.length === 1 && sentence.issues[0] === "No grammar mistakes found." ? (
-                              <div className="no-issues">
-                                <CheckCircle size={16} />
-                                <span>No grammar mistakes found</span>
-                              </div>
-                            ) : (
-                              <ul className="issues-list">
-                                {sentence.issues.map((issue, i) => (
-                                  <li key={i}>{issue}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                          {index < storyFeedback.feedback.grammar.length - 1 && (
-                            <hr className="feedback-divider" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="error-message">
-                    <AlertCircle size={20} />
-                    <p>{storyFeedback.message}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Vocabulary Feedback */}
-            {vocabFeedback && (
-              <div className="feedback-section vocab-enhancement">
-                <h3 className="feedback-title">
-                  <Book size={20} className="feedback-icon" /> 
-                  Vocabulary Enhancement
-                </h3>
-                {vocabFeedback.map((sentence, index) => (
-                  <div key={index} className="feedback-item">
-                    <div className="feedback-columns">
-                      <div className="original-text">
-                        <h5>Original</h5>
-                        <p>{sentence.original}</p>
-                      </div>
-                      <div className="enhanced-text">
-                        <h5>Enhanced</h5>
-                        <p>{sentence.enhanced}</p>
-                      </div>
-                    </div>
-                    <div className="vocab-details">
-                      <div className="replaced-explanation">
-                        <h5>Replaced Words</h5>
-                        {sentence.replaced === "No enhancement needed" || sentence.replaced === "No enhancement or correction needed" ? (
-                          <div className="no-issues">
-                            <CheckCircle size={16} />
-                            <span>No enhancement needed</span>
-                          </div>
-                        ) : (
-                          <ul className="replaced-list">
-                            {sentence.replaced.split(", ").map((replacement, i) => (
-                              <li key={i}>{replacement}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      <div className="meaning-explanation">
-                        <h5>Word Meanings</h5>
-                        {sentence.meanings === "No enhancement needed" || sentence.meanings === "No enhancement or correction needed" ? (
-                          <div className="no-issues">
-                            <CheckCircle size={16} />
-                            <span>No enhancement needed</span>
-                          </div>
-                        ) : (
-                          <ul className="meanings-list">
-                            {sentence.meanings.split(", ").map((meaning, i) => (
-                              <li key={i}>{meaning}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
-                    {index < vocabFeedback.length - 1 && <hr className="feedback-divider" />}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         ) : (
           <div className="loading-container">
@@ -641,8 +712,7 @@ export default function StoryCompletion() {
                       {new Date(pastStory.submittedAt).toLocaleDateString()}
                     </span>
                     <span className="story-stats">
-                      <Clock size={14} />
-                      {formatTime(pastStory.timeSpent)} | {pastStory.wordCount} words
+                      {pastStory.wordCount} words
                     </span>
                   </div>
                   <div className="past-story-content">

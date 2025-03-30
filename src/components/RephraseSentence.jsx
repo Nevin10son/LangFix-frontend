@@ -14,7 +14,8 @@ import {
   Lightbulb,
   Zap,
   Award,
-  CheckCircle
+  CheckCircle,
+  Edit
 } from "lucide-react";
 import "./RephraseSentence.css";
 
@@ -24,17 +25,21 @@ export default function RephraseSentence() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState(""); // success, error, info
   const [grammarFeedback, setGrammarFeedback] = useState(null);
-  const [vocabFeedback, setVocabFeedback] = useState(null);
   const [rephraseFeedback, setRephraseFeedback] = useState(null);
+  const [enhancedRephraseFeedback, setEnhancedRephraseFeedback] = useState(null);
   const [scoreResult, setScoreResult] = useState(null);
   const [showTips, setShowTips] = useState(false);
-  const [activeTab, setActiveTab] = useState("write"); // write, grammar, vocabulary, score
+  const [activeTab, setActiveTab] = useState("write"); // write, grammar, enhance, score
   const [loading, setLoading] = useState({
     submit: false,
-    vocab: false,
+    enhance: false,
     grammar: false,
     score: false
   });
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentAttempt, setCurrentAttempt] = useState(1);
+  const [userRephrase, setUserRephrase] = useState(null);
   const navigate = useNavigate();
 
   // Rephrasing tips
@@ -65,19 +70,27 @@ export default function RephraseSentence() {
   const fetchRandomRephrase = async () => {
     try {
       setActiveTab("write");
+      setIsSubmitted(false);
+      setIsEditing(false);
+      setCurrentAttempt(1);
+      setUserRephrase(null);
       const response = await axios.get("http://localhost:5000/random-rephrase", {
         headers: { token: sessionStorage.getItem("token") },
       });
       setQuestion(response.data);
       setRephrasedText("");
-      setGrammarFeedback(null);
-      setVocabFeedback(null);
-      setRephraseFeedback(null);
-      setScoreResult(null);
+      resetFeedback();
     } catch (error) {
       console.error("Error fetching rephrase question", error);
       showMessage("Failed to load question.", "error");
     }
+  };
+
+  const resetFeedback = () => {
+    setGrammarFeedback(null);
+    setEnhancedRephraseFeedback(null);
+    setRephraseFeedback(null);
+    setScoreResult(null);
   };
 
   const showMessage = (text, type = "info") => {
@@ -99,17 +112,45 @@ export default function RephraseSentence() {
     setLoading({...loading, submit: true});
 
     try {
-      await axios.post(
-        "http://localhost:5000/submit-rephrase",
-        {
-          userId: sessionStorage.getItem("userid"),
-          rephraseId: question._id,
-          rephrasedText,
-        },
-        { headers: { token: sessionStorage.getItem("token") } }
-      );
-      showMessage("Your rephrased text has been submitted successfully!", "success");
-      fetchRandomRephrase();
+      const userId = sessionStorage.getItem("userid");
+      
+      // Check if this is a new submission or an updated one
+      if (!isEditing || !userRephrase) {
+        // First submission
+        const response = await axios.post(
+          "http://localhost:5000/submit-rephrase",
+          {
+            userId,
+            rephraseId: question._id,
+            rephrasedText,
+            attemptNumber: 1
+          },
+          { headers: { token: sessionStorage.getItem("token") } }
+        );
+        setUserRephrase(response.data);
+        setCurrentAttempt(1);
+      } else {
+        // Updated submission (a new attempt)
+        const nextAttemptNumber = currentAttempt + 1;
+        const response = await axios.post(
+          "http://localhost:5000/update-rephrase",
+          {
+            userRephraseId: userRephrase._id,
+            userId,
+            rephraseId: question._id,
+            rephrasedText,
+            attemptNumber: nextAttemptNumber
+          },
+          { headers: { token: sessionStorage.getItem("token") } }
+        );
+        setUserRephrase(response.data);
+        setCurrentAttempt(nextAttemptNumber);
+      }
+      
+      setIsSubmitted(true);
+      setIsEditing(false);
+      resetFeedback();
+      showMessage(`Your rephrased text has been submitted successfully! (Attempt #${currentAttempt + (isEditing ? 1 : 0)})`, "success");
     } catch (error) {
       console.error("Error submitting rephrased text", error);
       showMessage("Failed to submit.", "error");
@@ -118,32 +159,32 @@ export default function RephraseSentence() {
     }
   };
 
-  const enhanceVocabulary = async () => {
+  const enhanceRephrase = async () => {
     if (!rephrasedText.trim()) {
-      showMessage("Please enter your rephrased text to enhance vocabulary!", "error");
+      showMessage("Please enter your rephrased text to enhance!", "error");
       return;
     }
 
-    setLoading({...loading, vocab: true});
+    setLoading({...loading, enhance: true});
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/vocabulary/enhance",
+        "http://localhost:5000/rephrase/enhance",
         { text: rephrasedText },
         { headers: { token: sessionStorage.getItem("token") } }
       );
       if (response.data.Status === "Success") {
-        setVocabFeedback(response.data.feedback);
-        setActiveTab("vocabulary");
-        showMessage("Vocabulary enhancement completed!", "success");
+        setEnhancedRephraseFeedback(response.data.feedback);
+        setActiveTab("enhance");
+        showMessage("Rephrasing enhancement completed! Consider these improvements for your next attempt.", "success");
       } else {
-        showMessage("Failed to enhance vocabulary: " + response.data.error, "error");
+        showMessage("Failed to enhance rephrasing: " + response.data.error, "error");
       }
     } catch (error) {
-      console.error("Error enhancing vocabulary:", error);
-      showMessage("Failed to enhance vocabulary with AI.", "error");
+      console.error("Error enhancing rephrasing:", error);
+      showMessage("Failed to enhance rephrasing with AI.", "error");
     } finally {
-      setLoading({...loading, vocab: false});
+      setLoading({...loading, enhance: false});
     }
   };
 
@@ -161,11 +202,10 @@ export default function RephraseSentence() {
         { originalText: question.text, rephrasedText },
         { headers: { token: sessionStorage.getItem("token") } }
       );
-      console.log("Raw API Response:", response.data);
       if (response.data.Status === "Success") {
         setRephraseFeedback(response.data);
         setActiveTab("grammar");
-        showMessage("Rephrase analysis completed!", "success");
+        showMessage("Rephrase analysis completed! Check the grammar feedback to improve your response.", "success");
       } else {
         showMessage("Failed to analyze rephrase: " + response.data.message, "error");
       }
@@ -182,25 +222,34 @@ export default function RephraseSentence() {
       showMessage("Please enter your rephrased text to score!", "error");
       return;
     }
-
+  
     setLoading({...loading, score: true});
-
+  
     try {
+      const userId = sessionStorage.getItem("userid");
+      
+      if (!userId) {
+        showMessage("User authentication error. Please log in again.", "error");
+        navigate("/login");
+        return;
+      }
+      
       const response = await axios.post(
         "http://localhost:5000/score-rephrase",
         { 
           originalText: question.text, 
-          rephrasedText 
+          rephrasedText,
+          rephraseId: question._id,
+          userId: userId,
+          attemptNumber: currentAttempt
         },
         { headers: { token: sessionStorage.getItem("token") } }
       );
       
-      console.log("Score Response:", response.data);
-      
       if (response.data.Status === "Success") {
         setScoreResult(response.data.feedback);
         setActiveTab("score");
-        showMessage("Scoring completed!", "success");
+        showMessage(`Scoring for attempt #${currentAttempt} completed! See how your response performed.`, "success");
       } else {
         showMessage("Failed to score: " + (response.data.message || "Unknown error"), "error");
       }
@@ -210,6 +259,13 @@ export default function RephraseSentence() {
     } finally {
       setLoading({...loading, score: false});
     }
+  };
+
+  const enableEditing = () => {
+    setIsEditing(true);
+    setActiveTab("write");
+    resetFeedback();
+    showMessage(`You can now improve your response for attempt #${currentAttempt + 1}. Submit when ready.`, "info");
   };
 
   const cleanIssueText = (issue) => {
@@ -254,6 +310,9 @@ export default function RephraseSentence() {
             <span>New Sentence</span>
           </button>
           <h1 className="page-title">Rephrase the Sentence</h1>
+          {currentAttempt > 1 && (
+            <span className="attempt-indicator">Attempt #{currentAttempt}</span>
+          )}
         </div>
         <button 
           className="back-button" 
@@ -265,42 +324,56 @@ export default function RephraseSentence() {
         </button>
       </header>
 
-      <div className="rephrase-tabs">
-        <button 
-          className={`rephrase-tab ${activeTab === 'write' ? 'rephrase-tab-active' : ''}`}
-          onClick={() => setActiveTab('write')}
-        >
-          <Send size={16} />
-          Write
-        </button>
-        {rephraseFeedback && (
+      {isSubmitted && (
+        <div className="rephrase-tabs">
+          <button 
+            className={`rephrase-tab ${activeTab === 'write' ? 'rephrase-tab-active' : ''}`}
+            onClick={() => setActiveTab('write')}
+          >
+            <Send size={16} />
+            Write
+          </button>
           <button 
             className={`rephrase-tab ${activeTab === 'grammar' ? 'rephrase-tab-active' : ''}`}
-            onClick={() => setActiveTab('grammar')}
+            onClick={() => {
+              if (rephraseFeedback) {
+                setActiveTab('grammar');
+              } else {
+                handleAnalyzeRephrase();
+              }
+            }}
           >
             <Check size={16} />
             Grammar
           </button>
-        )}
-        {vocabFeedback && (
           <button 
-            className={`rephrase-tab ${activeTab === 'vocabulary' ? 'rephrase-tab-active' : ''}`}
-            onClick={() => setActiveTab('vocabulary')}
+            className={`rephrase-tab ${activeTab === 'enhance' ? 'rephrase-tab-active' : ''}`}
+            onClick={() => {
+              if (enhancedRephraseFeedback) {
+                setActiveTab('enhance');
+              } else {
+                enhanceRephrase();
+              }
+            }}
           >
             <Book size={16} />
-            Vocabulary
+            Enhance
           </button>
-        )}
-        {scoreResult && (
           <button 
             className={`rephrase-tab ${activeTab === 'score' ? 'rephrase-tab-active' : ''}`}
-            onClick={() => setActiveTab('score')}
+            onClick={() => {
+              if (scoreResult) {
+                setActiveTab('score');
+              } else {
+                scoreRephrase();
+              }
+            }}
           >
             <Star size={16} />
             Score
           </button>
-        )}
-      </div>
+        </div>
+      )}
       
       {message && (
         <div className={`message-banner message-${messageType}`}>
@@ -351,7 +424,7 @@ export default function RephraseSentence() {
 
                 <div className="card input-card">
                   <div className="card-header">
-                    <h3>Your Rephrased Version</h3>
+                    <h3>Your Rephrased Version {isEditing && `(Attempt #${currentAttempt + 1})`}</h3>
                   </div>
                   <div className="card-content">
                     <textarea
@@ -359,42 +432,86 @@ export default function RephraseSentence() {
                       value={rephrasedText}
                       onChange={(e) => setRephrasedText(e.target.value)}
                       placeholder="Write your rephrased version here..."
+                      disabled={isSubmitted && !isEditing}
                     />
                   </div>
                 </div>
+                
+                {isSubmitted && !isEditing && (
+                  <div className="action-message">
+                    <p>You've submitted your response (Attempt #{currentAttempt}). Click on the tabs above to see feedback or click "Improve Response" to make changes for a new attempt.</p>
+                  </div>
+                )}
 
                 <div className="action-buttons">
+                  {!isSubmitted ? (
+                    // Initial state - only show Submit button
+                    <button 
+                      className="primary-button" 
+                      onClick={submitRephrasedText}
+                      disabled={loading.submit || !rephrasedText.trim()}
+                    >
+                      <Send size={18} />
+                      {loading.submit ? "Submitting..." : "Submit"}
+                    </button>
+                  ) : isEditing ? (
+                    // Editing state - show Submit button for the edited response
+                    <button 
+                      className="primary-button" 
+                      onClick={submitRephrasedText}
+                      disabled={loading.submit || !rephrasedText.trim()}
+                    >
+                      <Send size={18} />
+                      {loading.submit ? "Submitting..." : `Submit Improved Response (Attempt #${currentAttempt + 1})`}
+                    </button>
+                  ) : (
+                    // Submitted state - show Improve Response button
+                    <button 
+                      className="primary-button edit-button" 
+                      onClick={enableEditing}
+                    >
+                      <Edit size={18} />
+                      Improve Response (New Attempt)
+                    </button>
+                  )}
+                  
+                  {/* Analysis buttons only shown after submission and not in editing mode */}
+                  {isSubmitted && !isEditing && (
+                    <>
+                      <button 
+                        className="secondary-button" 
+                        onClick={handleAnalyzeRephrase}
+                        disabled={loading.grammar}
+                      >
+                        <Search size={18} />
+                        {loading.grammar ? "Analyzing..." : rephraseFeedback ? "View Grammar Analysis" : "Analyze Grammar"}
+                      </button>
+                      <button 
+                        className="secondary-button" 
+                        onClick={enhanceRephrase}
+                        disabled={loading.enhance}
+                      >
+                        <Book size={18} />
+                        {loading.enhance ? "Enhancing..." : enhancedRephraseFeedback ? "View Enhanced Version" : "Enhance Rephrase"}
+                      </button>
+                      <button 
+                        className="secondary-button score-button" 
+                        onClick={scoreRephrase}
+                        disabled={loading.score}
+                      >
+                        <Star size={18} />
+                        {loading.score ? "Scoring..." : scoreResult ? "View Score" : "Score Rephrase"}
+                      </button>
+                    </>
+                  )}
+                  
+                  {/* New sentence button - always available */}
                   <button 
-                    className="primary-button" 
-                    onClick={submitRephrasedText}
-                    disabled={loading.submit || !rephrasedText.trim()}
+                    className="secondary-button refresh-button" 
+                    onClick={fetchRandomRephrase}
                   >
-                    <Send size={18} />
-                    {loading.submit ? "Submitting..." : "Submit"}
-                  </button>
-                  <button 
-                    className="secondary-button" 
-                    onClick={enhanceVocabulary}
-                    disabled={loading.vocab || !rephrasedText.trim()}
-                  >
-                    <Book size={18} />
-                    {loading.vocab ? "Enhancing..." : "Enhance Vocabulary"}
-                  </button>
-                  <button 
-                    className="secondary-button" 
-                    onClick={handleAnalyzeRephrase}
-                    disabled={loading.grammar || !rephrasedText.trim()}
-                  >
-                    <Search size={18} />
-                    {loading.grammar ? "Analyzing..." : "Analyze Grammar"}
-                  </button>
-                  <button 
-                    className="secondary-button score-button" 
-                    onClick={scoreRephrase}
-                    disabled={loading.score || !rephrasedText.trim()}
-                  >
-                    <Star size={18} />
-                    {loading.score ? "Scoring..." : "Score Rephrase"}
+                    <RefreshCw size={18} />
+                    Try New Sentence
                   </button>
                 </div>
               </div>
@@ -405,7 +522,7 @@ export default function RephraseSentence() {
               <div className="grammar-container">
                 <div className="card feedback-card">
                   <div className="card-header feedback-header">
-                    <h3><Check size={20} /> Grammar Analysis</h3>
+                    <h3><Check size={20} /> Grammar Analysis (Attempt #{currentAttempt})</h3>
                     <p>Review of your rephrased sentence's grammatical structure</p>
                   </div>
                   
@@ -463,40 +580,50 @@ export default function RephraseSentence() {
                           </div>
                         ))}
                       </div>
+                      
+                      <div className="feedback-actions">
+                        <button 
+                          className="secondary-button" 
+                          onClick={enableEditing}
+                        >
+                          <Edit size={18} />
+                          Improve Response (New Attempt)
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Vocabulary Tab */}
-            {activeTab === 'vocabulary' && vocabFeedback && (
-              <div className="vocabulary-container">
+            {/* Enhanced Rephrasing Tab */}
+            {activeTab === 'enhance' && enhancedRephraseFeedback && (
+              <div className="enhance-container">
                 <div className="card feedback-card">
                   <div className="card-header feedback-header">
-                    <h3><Book size={20} /> Vocabulary Enhancement</h3>
-                    <p>Suggestions for improving word choice and language variety</p>
+                    <h3><Book size={20} /> Rephrasing Enhancement (Attempt #{currentAttempt})</h3>
+                    <p>Alternative rephrasing options for your sentences</p>
                   </div>
                   
                   <div className="card-content">
-                    {vocabFeedback.map((item, index) => (
-                      <div key={index} className="vocab-item">
-                        <div className="vocab-original">
-                          <span className="vocab-label">Original:</span>
+                    {enhancedRephraseFeedback.map((item, index) => (
+                      <div key={index} className="enhance-item">
+                        <div className="enhance-original">
+                          <span className="enhance-label">Original:</span>
                           <p>{item.original}</p>
                         </div>
-                        <div className="vocab-enhanced">
-                          <span className="vocab-label">Enhanced:</span>
-                          <p>{item.enhanced}</p>
+                        <div className="enhance-rephrased">
+                          <span className="enhance-label">Rephrased:</span>
+                          <p>{item.rephrased}</p>
                         </div>
                         
-                        <div className="vocab-details">
-                          <div className="vocab-replaced">
-                            <span className="vocab-label">Replaced Words:</span>
-                            {item.replaced === "No enhancement needed" || item.replaced === "No enhancement or correction needed" ? (
+                        <div className="enhance-details">
+                          <div className="enhance-words">
+                            <span className="enhance-label">Replaced Words:</span>
+                            {item.replaced === "No rephrasing needed" ? (
                               <div className="no-issues">
                                 <CheckCircle size={16} />
-                                <span>No enhancement needed</span>
+                                <span>No rephrasing needed</span>
                               </div>
                             ) : (
                               <ul className="replaced-list">
@@ -507,12 +634,12 @@ export default function RephraseSentence() {
                             )}
                           </div>
                           
-                          <div className="vocab-meanings">
-                            <span className="vocab-label">Word Meanings:</span>
-                            {item.meanings === "No enhancement needed" || item.meanings === "No enhancement or correction needed" ? (
+                          <div className="enhance-meanings">
+                            <span className="enhance-label">Word Meanings:</span>
+                            {item.meanings === "No rephrasing needed" ? (
                               <div className="no-issues">
                                 <CheckCircle size={16} />
-                                <span>No enhancement needed</span>
+                                <span>No rephrasing needed</span>
                               </div>
                             ) : (
                               <ul className="meanings-list">
@@ -525,6 +652,16 @@ export default function RephraseSentence() {
                         </div>
                       </div>
                     ))}
+                    
+                    <div className="feedback-actions">
+                      <button 
+                        className="secondary-button" 
+                        onClick={enableEditing}
+                      >
+                        <Edit size={18} />
+                        Try Using These Improvements (New Attempt)
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -535,7 +672,7 @@ export default function RephraseSentence() {
               <div className="score-container">
                 <div className="card feedback-card">
                   <div className="card-header feedback-header">
-                    <h3><Star size={20} /> Rephrase Score</h3>
+                    <h3><Star size={20} /> Rephrase Score (Attempt #{currentAttempt})</h3>
                     <p>Evaluation of your rephrasing quality and accuracy</p>
                   </div>
                   
@@ -611,6 +748,16 @@ export default function RephraseSentence() {
                           ))}
                         </ul>
                       </div>
+                    </div>
+                    
+                    <div className="feedback-actions">
+                      <button 
+                        className="secondary-button" 
+                        onClick={enableEditing}
+                      >
+                        <Edit size={18} />
+                        Try to Improve Your Score (New Attempt)
+                      </button>
                     </div>
                   </div>
                 </div>
