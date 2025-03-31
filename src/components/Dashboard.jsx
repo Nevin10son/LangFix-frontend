@@ -1,7 +1,21 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaBook, FaGlobe, FaImage, FaPen, FaSync, FaBookOpen, FaSearch, FaEnvelope, FaCommentAlt, FaUser, FaSignOutAlt } from "react-icons/fa";
+import { 
+  FaBook, 
+  FaGlobe, 
+  FaImage, 
+  FaPen, 
+  FaSync, 
+  FaBookOpen, 
+  FaSearch, 
+  FaEnvelope, 
+  FaCommentAlt, 
+  FaUser, 
+  FaSignOutAlt,
+  FaRobot, 
+  FaComments
+} from "react-icons/fa";
 import "./Dashboard.css";
 
 export default function Dashboard() {
@@ -15,6 +29,7 @@ export default function Dashboard() {
     { name: "Essay Writing", description: "Write an essay on the given topic.", path: "/essay-writing", icon: <FaPen />, color: "#ecfdf5" },
     { name: "Rephrase Sentences", description: "Rewrite sentences in your own words.", path: "/rephrase", icon: <FaSync />, color: "#fef3c7" },
     { name: "Story Completion", description: "Continue the given story creatively.", path: "/story-completion", icon: <FaBookOpen />, color: "#fce7f3" },
+    { name: "English Chatbot", description: "Ask questions and practice your English skills.", path: "/chatbot", icon: <FaComments />, color: "#ede9fe" },
     //{ name: "Error Hunting and Correction", description: "Find and correct grammar mistakes.", path: "/error-hunting", icon: <FaSearch />, color: "#ede9fe" },
   ];
 
@@ -37,6 +52,15 @@ export default function Dashboard() {
           <h1 className="dash-brand-name">LangFix</h1>
         </div>
         <div className="dash-user-section">
+          <motion.button
+            className="chatbot-quick-access"
+            onClick={() => navigate("/chatbot")}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            title="Chat with English Assistant"
+          >
+            <FaRobot />
+          </motion.button>
           <span className="dash-user-icon"><FaUser /></span>
           <span className="dash-user-name">{userName}</span>
           <motion.button

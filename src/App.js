@@ -21,6 +21,7 @@ import ErrorCorrection from "./components/ErrorCorrection";
 import EssaySelection from "./components/EssaySelection";
 import AdminAddDiaryPrompt from "./components/AdminAddDailyPrompt";
 import AdminAddDailyPrompt from "./components/AdminAddDailyPrompt";
+import ChatBot from "./components/ChatBot";
 
 function App() {
   return (
@@ -47,6 +48,7 @@ function App() {
         <Route path="/error-hunting"  element={<ErrorCorrection/>}/>
         <Route path="/essay-writing" element={<EssaySelection/>}/>
         <Route path="/add-diary-prompt" element={<AdminAddDailyPrompt/>}/>
+        <Route path="/chatbot" element={<ChatBot/>}/>
         </Routes>
         </BrowserRouter>
     

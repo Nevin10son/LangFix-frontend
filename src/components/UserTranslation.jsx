@@ -13,7 +13,9 @@ import {
   BarChart, 
   RefreshCw,
   Lightbulb,
-  Info
+  Info,
+  Edit,
+  Send
 } from "lucide-react";
 import "./UserTranslation.css";
 
@@ -30,6 +32,12 @@ const TranslationTask = () => {
   const [scoring, setScoring] = useState(false);
   const [showTips, setShowTips] = useState(true);
   const [activeTab, setActiveTab] = useState("translation"); // translation, analysis, score
+  
+  // New state variables for attempt tracking
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentAttempt, setCurrentAttempt] = useState(1);
+  const [userTranslationDoc, setUserTranslationDoc] = useState(null);
 
   useEffect(() => {
     fetchTranslationText();
@@ -49,6 +57,17 @@ const TranslationTask = () => {
         setTextData(response.data.translation);
         setMessageType("success");
         setMessage("Translation text loaded successfully");
+        
+        // Reset states for a new translation
+        setTranslatedText("");
+        setAiAnalysis(null);
+        setScoreAnalysis(null);
+        setIsSubmitted(false);
+        setIsEditing(false);
+        setCurrentAttempt(1);
+        setUserTranslationDoc(null);
+        setActiveTab("translation");
+        
         setTimeout(() => setMessage(""), 3000);
       } else {
         setMessageType("error");
@@ -67,6 +86,11 @@ const TranslationTask = () => {
     setTranslatedText(e.target.value);
   };
 
+  const resetFeedback = () => {
+    setAiAnalysis(null);
+    setScoreAnalysis(null);
+  };
+
   const submitTranslation = async () => {
     const token = sessionStorage.getItem("token");
     const userId = sessionStorage.getItem("userid");
@@ -80,20 +104,46 @@ const TranslationTask = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        "http://localhost:5000/submit-translation",
-        {
-          userId,
-          translationId: textData._id,
-          translatedText,
-        },
-        { headers: { token } }
-      );
-
+      // Check if this is a new submission or an improved one
+      if (!isEditing || !userTranslationDoc) {
+        // First submission
+        const response = await axios.post(
+          "http://localhost:5000/submit-translation",
+          {
+            userId,
+            translationId: textData._id,
+            userTranslation: translatedText,
+            attemptNumber: 1
+          },
+          { headers: { token } }
+        );
+        
+        setUserTranslationDoc(response.data);
+        setCurrentAttempt(1);
+      } else {
+        // Updated submission (a new attempt)
+        const nextAttemptNumber = currentAttempt + 1;
+        const response = await axios.post(
+          "http://localhost:5000/update-translation",
+          {
+            userTranslationId: userTranslationDoc._id,
+            userId,
+            translationId: textData._id,
+            userTranslation: translatedText,
+            attemptNumber: nextAttemptNumber
+          },
+          { headers: { token } }
+        );
+        
+        setUserTranslationDoc(response.data);
+        setCurrentAttempt(nextAttemptNumber);
+      }
+      
+      setIsSubmitted(true);
+      setIsEditing(false);
+      resetFeedback();
       setMessageType("success");
-      setMessage(response.data.message);
-      setAiAnalysis(null);
-      setScoreAnalysis(null);
+      setMessage(`Your translation has been submitted successfully! (Attempt #${currentAttempt + (isEditing ? 1 : 0)})`);
     } catch (error) {
       console.error("Error submitting translation:", error);
       setMessageType("error");
@@ -128,7 +178,7 @@ const TranslationTask = () => {
       if (response.data.Status === "Success") {
         setAiAnalysis(response.data);
         setMessageType("success");
-        setMessage("Translation analysis completed!");
+        setMessage(`Translation analysis for attempt #${currentAttempt} completed!`);
         setActiveTab("analysis");
       } else {
         setMessageType("error");
@@ -145,6 +195,7 @@ const TranslationTask = () => {
 
   const scoreTranslation = async () => {
     const token = sessionStorage.getItem("token");
+    const userId = sessionStorage.getItem("userid");
 
     if (!translatedText.trim()) {
       setMessageType("error");
@@ -160,6 +211,9 @@ const TranslationTask = () => {
         {
           originalText: textData.text,
           userTranslation: translatedText,
+          translationId: textData._id,
+          userId: userId,
+          attemptNumber: currentAttempt
         },
         { headers: { token } }
       );
@@ -168,7 +222,7 @@ const TranslationTask = () => {
         console.log("Score response:", response.data);
         setScoreAnalysis(response.data);
         setMessageType("success");
-        setMessage("Translation scoring completed!");
+        setMessage(`Translation scoring for attempt #${currentAttempt} completed!`);
         setActiveTab("score");
       } else {
         setMessageType("error");
@@ -181,6 +235,14 @@ const TranslationTask = () => {
     } finally {
       setScoring(false);
     }
+  };
+
+  const enableEditing = () => {
+    setIsEditing(true);
+    setActiveTab("translation");
+    resetFeedback();
+    setMessageType("info");
+    setMessage(`You can now improve your translation for attempt #${currentAttempt + 1}. Submit when ready.`);
   };
 
   const cleanIssueText = (issue) => {
@@ -221,6 +283,9 @@ const TranslationTask = () => {
         <div className="trans-header-left">
           <Globe className="trans-icon" />
           <h1>Translation Workshop</h1>
+          {currentAttempt > 1 && (
+            <span className="trans-attempt-indicator">Attempt #{currentAttempt}</span>
+          )}
         </div>
         <button 
           className="trans-back-button"
@@ -272,33 +337,43 @@ const TranslationTask = () => {
         </div>
       )}
 
-      <div className="trans-tabs">
-        <button 
-          className={`trans-tab ${activeTab === 'translation' ? 'trans-tab-active' : ''}`}
-          onClick={() => setActiveTab('translation')}
-        >
-          <BookOpen size={16} />
-          Translation
-        </button>
-        {aiAnalysis && (
+      {isSubmitted && (
+        <div className="trans-tabs">
+          <button 
+            className={`trans-tab ${activeTab === 'translation' ? 'trans-tab-active' : ''}`}
+            onClick={() => setActiveTab('translation')}
+          >
+            <BookOpen size={16} />
+            Translation
+          </button>
           <button 
             className={`trans-tab ${activeTab === 'analysis' ? 'trans-tab-active' : ''}`}
-            onClick={() => setActiveTab('analysis')}
+            onClick={() => {
+              if (aiAnalysis) {
+                setActiveTab('analysis');
+              } else {
+                analyzeTranslation();
+              }
+            }}
           >
             <Search size={16} />
             Analysis
           </button>
-        )}
-        {scoreAnalysis && (
           <button 
             className={`trans-tab ${activeTab === 'score' ? 'trans-tab-active' : ''}`}
-            onClick={() => setActiveTab('score')}
+            onClick={() => {
+              if (scoreAnalysis) {
+                setActiveTab('score');
+              } else {
+                scoreTranslation();
+              }
+            }}
           >
             <Star size={16} />
             Score
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {activeTab === 'translation' && (
         <div className="trans-workspace">
@@ -334,7 +409,7 @@ const TranslationTask = () => {
           <div className="trans-panel trans-target-panel">
             <div className="trans-panel-header">
               <h2>
-                <span className="trans-panel-title">Your Translation</span>
+                <span className="trans-panel-title">Your Translation {isEditing && `(Attempt #${currentAttempt + 1})`}</span>
                 <span className="trans-language-badge">English</span>
               </h2>
               <div className="trans-char-count">
@@ -348,37 +423,77 @@ const TranslationTask = () => {
                 onChange={handleInputChange}
                 placeholder="Type your English translation here..."
                 className="trans-textarea"
-                disabled={loading}
+                disabled={loading || (isSubmitted && !isEditing)}
               />
             </div>
+            
+            {isSubmitted && !isEditing && (
+              <div className="trans-action-message">
+                <p>You've submitted your translation (Attempt #{currentAttempt}). Use the tabs above to see feedback or click "Improve Translation" to make changes for a new attempt.</p>
+              </div>
+            )}
 
             <div className="trans-actions">
-              <button 
-                onClick={analyzeTranslation} 
-                className={`trans-button trans-analyze-button ${analyzing ? 'trans-loading' : ''}`}
-                disabled={analyzing || loading || scoring || !textData}
-              >
-                <Search size={16} />
-                {analyzing ? 'Analyzing...' : 'Analyze Translation'}
-              </button>
-              
-              <button 
-                onClick={scoreTranslation} 
-                className={`trans-button trans-score-button ${scoring ? 'trans-loading' : ''}`}
-                disabled={scoring || loading || analyzing || !textData}
-              >
-                <Star size={16} />
-                {scoring ? 'Scoring...' : 'Score Translation'}
-              </button>
-              
-              <button 
-                onClick={submitTranslation} 
-                className={`trans-button trans-submit-button ${loading ? 'trans-loading' : ''}`}
-                disabled={loading || analyzing || scoring || !textData}
-              >
-                <CheckCircle size={16} />
-                {loading ? 'Submitting...' : 'Submit Translation'}
-              </button>
+              {!isSubmitted ? (
+                // Initial state - only show Submit button
+                <button 
+                  onClick={submitTranslation} 
+                  className={`trans-button trans-submit-button ${loading ? 'trans-loading' : ''}`}
+                  disabled={loading || !textData || !translatedText.trim()}
+                >
+                  <Send size={16} />
+                  {loading ? 'Submitting...' : 'Submit Translation'}
+                </button>
+              ) : isEditing ? (
+                // Editing state - show Submit button for the improved translation
+                <button 
+                  onClick={submitTranslation} 
+                  className={`trans-button trans-submit-button ${loading ? 'trans-loading' : ''}`}
+                  disabled={loading || !textData || !translatedText.trim()}
+                >
+                  <Send size={16} />
+                  {loading ? 'Submitting...' : `Submit Improved Translation (Attempt #${currentAttempt + 1})`}
+                </button>
+              ) : (
+                // Submitted state - show buttons for analysis, scoring, and improving
+                <>
+                  <button 
+                    onClick={enableEditing} 
+                    className="trans-button trans-edit-button"
+                    disabled={loading}
+                  >
+                    <Edit size={16} />
+                    Improve Translation (New Attempt)
+                  </button>
+                
+                  <button 
+                    onClick={analyzeTranslation} 
+                    className={`trans-button trans-analyze-button ${analyzing ? 'trans-loading' : ''}`}
+                    disabled={analyzing || loading || scoring}
+                  >
+                    <Search size={16} />
+                    {analyzing ? 'Analyzing...' : aiAnalysis ? 'View Analysis' : 'Analyze Translation'}
+                  </button>
+                  
+                  <button 
+                    onClick={scoreTranslation} 
+                    className={`trans-button trans-score-button ${scoring ? 'trans-loading' : ''}`}
+                    disabled={scoring || loading || analyzing}
+                  >
+                    <Star size={16} />
+                    {scoring ? 'Scoring...' : scoreAnalysis ? 'View Score' : 'Score Translation'}
+                  </button>
+                  
+                  <button 
+                    onClick={fetchTranslationText} 
+                    className="trans-button trans-refresh-button"
+                    disabled={loading}
+                  >
+                    <RefreshCw size={16} />
+                    Try New Text
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -387,7 +502,7 @@ const TranslationTask = () => {
       {activeTab === 'analysis' && aiAnalysis && (
         <div className="trans-analysis-container">
           <div className="trans-analysis-header">
-            <h2><Search size={20} /> AI Analysis Results</h2>
+            <h2><Search size={20} /> AI Analysis Results (Attempt #{currentAttempt})</h2>
             <p>Detailed analysis of your translation's accuracy, grammar, and vocabulary</p>
           </div>
           
@@ -498,13 +613,23 @@ const TranslationTask = () => {
               </div>
             </div>
           </div>
+          
+          <div className="trans-feedback-actions">
+            <button 
+              className="trans-button trans-improve-button" 
+              onClick={enableEditing}
+            >
+              <Edit size={16} />
+              Improve Translation Using This Feedback (New Attempt)
+            </button>
+          </div>
         </div>
       )}
 
       {activeTab === 'score' && scoreAnalysis && (
         <div className="trans-score-container">
           <div className="trans-score-header">
-            <h2><Star size={20} /> Translation Score</h2>
+            <h2><Star size={20} /> Translation Score (Attempt #{currentAttempt})</h2>
             <p>Evaluation of your translation quality based on multiple criteria</p>
           </div>
           
@@ -604,6 +729,16 @@ const TranslationTask = () => {
                 {renderProgressBar(scoreAnalysis.feedback.Completeness.score, 10)}
               </div>
             </div>
+          </div>
+          
+          <div className="trans-feedback-actions">
+            <button 
+              className="trans-button trans-improve-button" 
+              onClick={enableEditing}
+            >
+              <Edit size={16} />
+              Try to Improve Your Score (New Attempt)
+            </button>
           </div>
         </div>
       )}

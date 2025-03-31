@@ -14,7 +14,9 @@ import {
   PlayCircle,
   RefreshCw,
   Info,
-  List
+  List,
+  Edit,
+  Send
 } from "lucide-react";
 import "./EssaySelection.css";
 
@@ -39,6 +41,12 @@ export default function EssayWriting() {
   const [pastEssays, setPastEssays] = useState([]);
   const textareaRef = useRef(null);
   const navigate = useNavigate();
+  
+  // New state variables for tracking attempts
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentAttempt, setCurrentAttempt] = useState(1);
+  const [essaySubmission, setEssaySubmission] = useState(null);
 
   // Timer logic
   useEffect(() => {
@@ -102,6 +110,13 @@ export default function EssayWriting() {
     }
   }, [activeTab]);
 
+  // Reset feedback states
+  const resetFeedback = () => {
+    setAiAnalysis(null);
+    setVocabEnhancement(null);
+    setScoreResult(null);
+  };
+
   // Fetch past essays
   const fetchPastEssays = async () => {
     try {
@@ -138,12 +153,14 @@ export default function EssayWriting() {
     setSelectedCategory(categoryName);
     setRandomTopic(null);
     setEssayText("");
-    setAiAnalysis(null);
-    setVocabEnhancement(null);
-    setScoreResult(null);
+    resetFeedback();
     setTimeLeft(15 * 60);
     setTimerActive(false);
     setTimerStarted(false);
+    setIsSubmitted(false);
+    setIsEditing(false);
+    setCurrentAttempt(1);
+    setEssaySubmission(null);
     
     if (textareaRef.current) {
       textareaRef.current.disabled = false;
@@ -179,12 +196,14 @@ export default function EssayWriting() {
       
       setRandomTopic(newTopic);
       setEssayText("");
-      setAiAnalysis(null);
-      setVocabEnhancement(null);
-      setScoreResult(null);
+      resetFeedback();
       setTimeLeft(15 * 60);
       setTimerActive(false);
       setTimerStarted(false);
+      setIsSubmitted(false);
+      setIsEditing(false);
+      setCurrentAttempt(1);
+      setEssaySubmission(null);
       
       if (textareaRef.current) {
         textareaRef.current.disabled = false;
@@ -200,6 +219,23 @@ export default function EssayWriting() {
   // Count words in essay text
   const countWords = (text) => {
     return text.trim() ? text.trim().split(/\s+/).length : 0;
+  };
+
+  // Enable editing for a new attempt
+  const enableEditing = () => {
+    setIsEditing(true);
+    setActiveTab("write");
+    resetFeedback();
+    // Reset timer states for new attempt
+    setTimeLeft(15 * 60);
+    setTimerActive(false);
+    setTimerStarted(false);
+    // Enable textarea
+    if (textareaRef.current) {
+      textareaRef.current.disabled = false;
+    }
+    setMessage(`You can now improve your essay for attempt #${currentAttempt + 1}. Submit when ready.`);
+    setMessageType("info");
   };
 
   // Handle essay submission
@@ -223,28 +259,57 @@ export default function EssayWriting() {
         return;
       }
 
-      await axios.post(
-        "http://localhost:5000/submit-essay",
-        { userId, topicId: randomTopic._id, essayText },
-        { headers: { token } }
-      );
-
-      setMessage("Essay submitted successfully!");
-      setMessageType("success");
-      
-      // Reset for a new essay
-      setRandomTopic(null);
-      setEssayText("");
-      setSelectedCategory("");
-      setAiAnalysis(null);
-      setVocabEnhancement(null);
-      setScoreResult(null);
-      setTimeLeft(15 * 60);
-      setTimerActive(false);
-      setTimerStarted(false);
-      
-      if (textareaRef.current) {
-        textareaRef.current.disabled = false;
+      // Check if this is a new submission or an improved one
+      if (!isEditing || !essaySubmission) {
+        // First submission
+        const response = await axios.post(
+          "http://localhost:5000/submit-essay",
+          { 
+            userId, 
+            topicId: randomTopic._id, 
+            essayText,
+            attemptNumber: 1
+          },
+          { headers: { token } }
+        );
+        
+        if (response.data.status === "Success") {
+          setEssaySubmission(response.data.data);
+          setCurrentAttempt(1);
+          setIsSubmitted(true);
+          setIsEditing(false);
+          setMessage("Essay submitted successfully! You can now analyze your essay.");
+          setMessageType("success");
+        } else {
+          setMessage("Failed to submit essay: " + response.data.error);
+          setMessageType("error");
+        }
+      } else {
+        // Updated submission (a new attempt)
+        const nextAttemptNumber = currentAttempt + 1;
+        const response = await axios.post(
+          "http://localhost:5000/update-essay",
+          {
+            essaySubmissionId: essaySubmission._id,
+            userId,
+            topicId: randomTopic._id,
+            essayText,
+            attemptNumber: nextAttemptNumber
+          },
+          { headers: { token } }
+        );
+        
+        if (response.data.status === "Success") {
+          setEssaySubmission(response.data.data);
+          setCurrentAttempt(nextAttemptNumber);
+          setIsSubmitted(true);
+          setIsEditing(false);
+          setMessage(`Improved essay submitted successfully! (Attempt #${nextAttemptNumber})`);
+          setMessageType("success");
+        } else {
+          setMessage("Failed to submit improved essay: " + response.data.error);
+          setMessageType("error");
+        }
       }
     } catch (error) {
       console.error("Error submitting essay:", error);
@@ -284,7 +349,7 @@ export default function EssayWriting() {
       console.log("AI Analysis Response:", response.data);
       setAiAnalysis(response.data);
       setActiveTab("grammar");
-      setMessage("Grammar analysis completed successfully!");
+      setMessage(`Grammar analysis for attempt #${currentAttempt} completed successfully!`);
       setMessageType("success");
     } catch (error) {
       console.error("Error analyzing essay:", error);
@@ -326,7 +391,7 @@ export default function EssayWriting() {
       if (response.data.Status === "Success") {
         setVocabEnhancement(response.data);
         setActiveTab("vocabulary");
-        setMessage("Vocabulary enhancement completed successfully!");
+        setMessage(`Vocabulary enhancement for attempt #${currentAttempt} completed successfully!`);
         setMessageType("success");
       } else {
         setMessage("Failed to enhance vocabulary: " + (response.data.error || "Unknown error"));
@@ -354,7 +419,9 @@ export default function EssayWriting() {
 
     try {
       const token = sessionStorage.getItem("token");
-      if (!token) {
+      const userId = sessionStorage.getItem("userid");
+      
+      if (!token || !userId) {
         setMessage("User is not logged in. Please log in to score an essay.");
         setMessageType("error");
         setScoring(false);
@@ -363,7 +430,13 @@ export default function EssayWriting() {
 
       const response = await axios.post(
         "http://localhost:5000/score-essay",
-        { topic: randomTopic.question, essayText },
+        { 
+          topic: randomTopic.question, 
+          essayText,
+          essayId: randomTopic._id,
+          userId,
+          attemptNumber: currentAttempt
+        },
         { headers: { token } }
       );
 
@@ -393,7 +466,7 @@ export default function EssayWriting() {
         
         setScoreResult(adaptedFeedback);
         setActiveTab("score");
-        setMessage("Essay scoring completed successfully!");
+        setMessage(`Essay scoring for attempt #${currentAttempt} completed successfully!`);
         setMessageType("success");
       } else {
         setMessage("Failed to score essay: " + (response.data.message || "Unknown error"));
@@ -451,6 +524,9 @@ export default function EssayWriting() {
         <div className="essay-title">
           <PenTool className="essay-title-icon" />
           <h1>Essay Writing Workshop</h1>
+          {currentAttempt > 1 && (
+            <span className="essay-attempt-indicator">Attempt #{currentAttempt}</span>
+          )}
         </div>
         
         <div className="essay-header-right">
@@ -461,49 +537,63 @@ export default function EssayWriting() {
         </div>
       </header>
 
-      <div className="essay-tabs">
-        <button 
-          className={`essay-tab ${activeTab === 'write' ? 'essay-tab-active' : ''}`}
-          onClick={() => setActiveTab('write')}
-        >
-          <PenTool size={16} />
-          Write Essay
-        </button>
-        {aiAnalysis && (
+      {isSubmitted && (
+        <div className="essay-tabs">
+          <button 
+            className={`essay-tab ${activeTab === 'write' ? 'essay-tab-active' : ''}`}
+            onClick={() => setActiveTab('write')}
+          >
+            <PenTool size={16} />
+            Write Essay
+          </button>
           <button 
             className={`essay-tab ${activeTab === 'grammar' ? 'essay-tab-active' : ''}`}
-            onClick={() => setActiveTab('grammar')}
+            onClick={() => {
+              if (aiAnalysis) {
+                setActiveTab('grammar');
+              } else {
+                handleAnalyze();
+              }
+            }}
           >
             <CheckCircle size={16} />
             Grammar Analysis
           </button>
-        )}
-        {vocabEnhancement && (
           <button 
             className={`essay-tab ${activeTab === 'vocabulary' ? 'essay-tab-active' : ''}`}
-            onClick={() => setActiveTab('vocabulary')}
+            onClick={() => {
+              if (vocabEnhancement) {
+                setActiveTab('vocabulary');
+              } else {
+                handleEnhanceVocabulary();
+              }
+            }}
           >
             <Book size={16} />
             Vocabulary
           </button>
-        )}
-        {scoreResult && (
           <button 
             className={`essay-tab ${activeTab === 'score' ? 'essay-tab-active' : ''}`}
-            onClick={() => setActiveTab('score')}
+            onClick={() => {
+              if (scoreResult) {
+                setActiveTab('score');
+              } else {
+                handleScoreEssay();
+              }
+            }}
           >
             <Star size={16} />
             Score
           </button>
-        )}
-        <button 
-          className={`essay-tab ${activeTab === 'history' ? 'essay-tab-active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          <History size={16} />
-          History
-        </button>
-      </div>
+          <button 
+            className={`essay-tab ${activeTab === 'history' ? 'essay-tab-active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            <History size={16} />
+            History
+          </button>
+        </div>
+      )}
       
       {message && (
         <div className={`essay-message essay-message-${messageType}`}>
@@ -533,6 +623,7 @@ export default function EssayWriting() {
                     className="essay-category-select" 
                     value={selectedCategory} 
                     onChange={handleCategoryChange}
+                    disabled={isSubmitted && !isEditing}
                   >
                     <option value="">-- Select a Category --</option>
                     {categories.map((category) => (
@@ -543,7 +634,7 @@ export default function EssayWriting() {
                   </select>
                 </div>
                 
-                {selectedCategory && (
+                {selectedCategory && !isSubmitted && (
                   <button className="essay-new-topic-button" onClick={getNewTopic}>
                     <RefreshCw size={16} />
                     Get New Topic
@@ -558,572 +649,640 @@ export default function EssayWriting() {
                 </div>
               )}
 
-              <div className="essay-actions">
-                <button 
-                  className="essay-button essay-submit-button" 
-                  onClick={handleSubmit} 
-                  disabled={loading || !randomTopic || !essayText.trim()}
-                >
-                  <CheckCircle size={16} />
-                  {loading ? "Submitting..." : "Submit Essay"}
-                </button>
-                
-                <button 
-                  className="essay-button essay-analyze-button" 
-                  onClick={handleAnalyze} 
-                  disabled={analyzing || !randomTopic || !essayText.trim()}
-                >
-                  <CheckCircle size={16} />
-                  {analyzing ? "Analyzing..." : "Grammar Analysis"}
-                </button>
-                
-                <button 
-                  className="essay-button essay-vocab-button" 
-                  onClick={handleEnhanceVocabulary} 
-                  disabled={enhancingVocab || !randomTopic || !essayText.trim()}
-                >
-                  <Book size={16} />
-                  {enhancingVocab ? "Enhancing..." : "Enhance Vocabulary"}
-                </button>
-                
-                <button 
-                  className="essay-button essay-score-button" 
-                  onClick={handleScoreEssay} 
-                  disabled={scoring || !randomTopic || !essayText.trim()}
-                >
-                  <Star size={16} />
-                  {scoring ? "Scoring..." : "Score Essay"}
-                </button>
-              </div>
-            </div>
+{isSubmitted && !isEditing && (
+  <div className="essay-action-message">
+    <p>You've submitted your essay (Attempt #{currentAttempt}). Use the tabs above to see feedback or click "Improve Essay" to make changes for a new attempt.</p>
+  </div>
+)}
 
-            <div className="essay-right-panel">
-              <div className="essay-editor-header">
-                <h2>Your Essay</h2>
-                <div className="essay-editor-tools">
-                  <div className="essay-word-count">
-                    <FileText size={14} />
-                    <span>{countWords(essayText)} words</span>
-                  </div>
-                  
-                  {!timerStarted && (
-                    <button 
-                      className="essay-timer-button" 
-                      onClick={startTimer}
-                      disabled={!randomTopic}
-                    >
-                      <PlayCircle size={16} />
-                      Start Timer
-                    </button>
+<div className="essay-actions">
+  {!isSubmitted ? (
+    // Initial state - only show Submit button
+    <button 
+      className="essay-button essay-submit-button" 
+      onClick={handleSubmit} 
+      disabled={loading || !randomTopic || !essayText.trim()}
+    >
+      <Send size={16} />
+      {loading ? "Submitting..." : "Submit Essay"}
+    </button>
+  ) : isEditing ? (
+    // Editing state - show Submit button for the improved essay
+    <button 
+      className="essay-button essay-submit-button" 
+      onClick={handleSubmit} 
+      disabled={loading || !randomTopic || !essayText.trim()}
+    >
+      <Send size={16} />
+      {loading ? "Submitting..." : `Submit Improved Essay (Attempt #${currentAttempt + 1})`}
+    </button>
+  ) : (
+    // Submitted state - show Improve Essay button and analysis buttons
+    <>
+      <button 
+        className="essay-button essay-edit-button" 
+        onClick={enableEditing}
+      >
+        <Edit size={16} />
+        Improve Essay (New Attempt)
+      </button>
+      
+      <button 
+        className="essay-button essay-analyze-button" 
+        onClick={handleAnalyze} 
+        disabled={analyzing}
+      >
+        <CheckCircle size={16} />
+        {analyzing ? "Analyzing..." : aiAnalysis ? "View Grammar Analysis" : "Grammar Analysis"}
+      </button>
+      
+      <button 
+        className="essay-button essay-vocab-button" 
+        onClick={handleEnhanceVocabulary} 
+        disabled={enhancingVocab}
+      >
+        <Book size={16} />
+        {enhancingVocab ? "Enhancing..." : vocabEnhancement ? "View Vocabulary Enhancement" : "Enhance Vocabulary"}
+      </button>
+      
+      <button 
+        className="essay-button essay-score-button" 
+        onClick={handleScoreEssay} 
+        disabled={scoring}
+      >
+        <Star size={16} />
+        {scoring ? "Scoring..." : scoreResult ? "View Score" : "Score Essay"}
+      </button>
+      
+      <button 
+        className="essay-button essay-new-button" 
+        onClick={getNewTopic}
+      >
+        <RefreshCw size={16} />
+        Try New Topic
+      </button>
+    </>
+  )}
+  
+  {(!isSubmitted || isEditing) && !timerStarted && (
+    <button 
+      className="essay-timer-button" 
+      onClick={startTimer}
+      disabled={!randomTopic}
+    >
+      <PlayCircle size={16} />
+      Start Timer
+    </button>
+  )}
+</div>
+</div>
+
+<div className="essay-right-panel">
+  <div className="essay-editor-header">
+    <h2>Your Essay {isEditing && `(Attempt #${currentAttempt + 1})`}</h2>
+    <div className="essay-editor-tools">
+      <div className="essay-word-count">
+        <FileText size={14} />
+        <span>{countWords(essayText)} words</span>
+      </div>
+    </div>
+  </div>
+  
+  <div className="essay-textarea-container">
+    <textarea
+      ref={textareaRef}
+      className="essay-textarea"
+      value={essayText}
+      onChange={handleEssayChange}
+      placeholder={randomTopic ? "Start writing your essay here..." : "Select a category and topic to begin writing..."}
+      disabled={(isSubmitted && !isEditing) || (!randomTopic) || (timerStarted && timeLeft === 0)}
+      spellCheck="true"
+    ></textarea>
+  </div>
+</div>
+</div>
+</div>
+)}
+
+{activeTab === 'grammar' && aiAnalysis && (
+<div className="essay-analysis-container">
+  <div className="essay-analysis-header">
+    <h2><CheckCircle size={20} /> Grammar Analysis (Attempt #{currentAttempt})</h2>
+    <p>Review of grammatical structure and suggestions for improvement</p>
+  </div>
+  
+  {aiAnalysis.Status === "Success" && (
+    <>
+      <div className="essay-relevance-card">
+        <div className="essay-card-header">
+          <h3>Topic Relevance</h3>
+        </div>
+        <div className="essay-card-content">
+          <div className="essay-comparison">
+            <div className="essay-comparison-item">
+              <h4>Topic</h4>
+              <p>{aiAnalysis.feedback.relevance.topic}</p>
+            </div>
+            <div className="essay-comparison-item">
+              <h4>Your Essay</h4>
+              <p>{aiAnalysis.feedback.relevance.essayText}</p>
+            </div>
+          </div>
+          <div className="essay-result">
+            <h4>Analysis Result</h4>
+            <p>{aiAnalysis.feedback.relevance.result}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="essay-grammar-card">
+        <div className="essay-card-header">
+          <h3>Grammar Corrections</h3>
+        </div>
+        <div className="essay-card-content">
+          {aiAnalysis.feedback.grammar && aiAnalysis.feedback.grammar.length > 0 ? (
+            aiAnalysis.feedback.grammar.map((sentence, index) => (
+              <div key={index} className="essay-feedback-item">
+                <div className="essay-feedback-original">
+                  <h4>Original</h4>
+                  <p>{sentence.original}</p>
+                </div>
+                <div className="essay-feedback-corrected">
+                  <h4>Corrected</h4>
+                  <p>{sentence.corrected}</p>
+                </div>
+                <div className="essay-feedback-issues">
+                  <h4>Issues</h4>
+                  {sentence.issues.length === 1 && sentence.issues[0] === "No grammar mistakes found." ? (
+                    <div className="essay-no-issues">
+                      <CheckCircle size={16} />
+                      <span>No grammar mistakes found</span>
+                    </div>
+                  ) : (
+                    <ul className="essay-issues-list">
+                      {sentence.issues.map((issue, i) => (
+                        <li key={i}>{cleanIssueText(issue)}</li>
+                      ))}
+                    </ul>
                   )}
                 </div>
               </div>
+            ))
+          ) : (
+            <div className="essay-no-issues-container">
+              <CheckCircle size={40} />
+              <p>Perfect grammar! No mistakes found in your essay.</p>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="essay-feedback-actions">
+        <button 
+          className="essay-button essay-improve-button" 
+          onClick={enableEditing}
+        >
+          <Edit size={16} />
+          Improve Essay Using This Feedback (New Attempt)
+        </button>
+      </div>
+    </>
+  )}
+</div>
+)}
+  
+{activeTab === 'vocabulary' && vocabEnhancement && (
+<div className="essay-analysis-container">
+  <div className="essay-analysis-header">
+    <h2><Book size={20} /> Vocabulary Enhancement (Attempt #{currentAttempt})</h2>
+    <p>Suggestions for improving word choice and language variety</p>
+  </div>
+  
+  <div className="essay-vocab-cards">
+    {vocabEnhancement.Status === "Success" && vocabEnhancement.feedback.length > 0 ? (
+      vocabEnhancement.feedback.map((item, index) => (
+        <div key={index} className="essay-vocab-card">
+          <div className="essay-card-header">
+            <h3>Enhancement {index + 1}</h3>
+          </div>
+          <div className="essay-card-content">
+            <div className="essay-vocab-comparison">
+              <div className="essay-feedback-original">
+                <h4>Original</h4>
+                <p>{item.original}</p>
+              </div>
+              <div className="essay-feedback-enhanced">
+                <h4>Enhanced</h4>
+                <p>{item.enhanced}</p>
+              </div>
+            </div>
+            
+            <div className="essay-vocab-details">
+              <div className="essay-replaced-words">
+                <h4>Replaced Words</h4>
+                {item.replaced === "No enhancement needed" ? (
+                  <div className="essay-no-issues">
+                    <CheckCircle size={16} />
+                    <span>No enhancement needed</span>
+                  </div>
+                ) : (
+                  <ul className="essay-replaced-list">
+                    {item.replaced.split(", ").map((replacement, i) => (
+                      <li key={i}>{replacement}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               
-              <div className="essay-textarea-container">
-                <textarea
-                  ref={textareaRef}
-                  className="essay-textarea"
-                  value={essayText}
-                  onChange={handleEssayChange}
-                  placeholder={randomTopic ? "Start writing your essay here..." : "Select a category and topic to begin writing..."}
-                  disabled={!randomTopic || (timerStarted && timeLeft === 0)}
-                  spellCheck="true"
-                ></textarea>
+              <div className="essay-word-meanings">
+                <h4>Word Meanings</h4>
+                {item.meanings === "No enhancement needed" ? (
+                  <div className="essay-no-issues">
+                    <CheckCircle size={16} />
+                    <span>No enhancement needed</span>
+                  </div>
+                ) : (
+                  <ul className="essay-meanings-list">
+                    {item.meanings.split(", ").map((meaning, i) => (
+                      <li key={i}>{meaning}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           </div>
         </div>
-      )}
-
-      {activeTab === 'grammar' && aiAnalysis && (
-        <div className="essay-analysis-container">
-          <div className="essay-analysis-header">
-            <h2><CheckCircle size={20} /> Grammar Analysis</h2>
-            <p>Review of grammatical structure and suggestions for improvement</p>
-          </div>
-          
-          {aiAnalysis.Status === "Success" && (
-            <>
-              <div className="essay-relevance-card">
-                <div className="essay-card-header">
-                  <h3>Topic Relevance</h3>
-                </div>
-                <div className="essay-card-content">
-                  <div className="essay-comparison">
-                    <div className="essay-comparison-item">
-                      <h4>Topic</h4>
-                      <p>{aiAnalysis.feedback.relevance.topic}</p>
-                    </div>
-                    <div className="essay-comparison-item">
-                      <h4>Your Essay</h4>
-                      <p>{aiAnalysis.feedback.relevance.essayText}</p>
-                    </div>
+      ))
+    ) : (
+      <div className="essay-no-issues-container">
+        <CheckCircle size={40} />
+        <p>Excellent vocabulary! No enhancements needed for your essay.</p>
+      </div>
+    )}
+  </div>
+  
+  <div className="essay-feedback-actions">
+    <button 
+      className="essay-button essay-improve-button" 
+      onClick={enableEditing}
+    >
+      <Edit size={16} />
+      Improve Essay Using These Enhancements (New Attempt)
+    </button>
+  </div>
+</div>
+)}
+  
+{activeTab === 'score' && scoreResult && (
+<div className="essay-analysis-container">
+  <div className="essay-analysis-header">
+    <h2><Star size={20} /> Essay Score (Attempt #{currentAttempt})</h2>
+    <p>Evaluation of your essay based on content, organization, language, and coherence</p>
+  </div>
+  
+  <div className="essay-score-overview">
+    <div className="essay-score-circle" style={{ 
+      background: `conic-gradient(${getScoreColor(scoreResult.total)} ${scoreResult.total * 3.6}deg, #f0f0f0 ${scoreResult.total * 3.6}deg 360deg)` 
+    }}>
+      <div className="essay-score-inner">
+        <span className="essay-score-value">{scoreResult.total}</span>
+        <span className="essay-score-max">/100</span>
+      </div>
+    </div>
+    <div className="essay-score-feedback">
+      <h3>Overall Feedback</h3>
+      <p>{scoreResult.overallFeedback || "Keep practicing to improve your writing skills."}</p>
+    </div>
+  </div>
+  
+  <div className="essay-score-criteria">
+    {/* Content Section */}
+    <div className="essay-score-criterion">
+      <div className="essay-criterion-header">
+        <h4>{scoreResult.content.title || "Content"}</h4>
+        <span className="essay-criterion-weight">25%</span>
+      </div>
+      <p>{scoreResult.content.feedback}</p>
+      {renderProgressBar(scoreResult.content.score, 10)}
+      
+      {scoreResult.content.strengths && (
+        <div className="essay-feedback-points">
+          <h5>Strengths:</h5>
+          <ul className="essay-points-list">
+            {scoreResult.content.strengths.map((strength, i) => (
+              <li key={i}>
+                <strong>{strength.point}</strong>
+                {strength.example && (
+                  <div className="essay-example">
+                    Example: <em>"{strength.example}"</em>
                   </div>
-                  <div className="essay-result">
-                    <h4>Analysis Result</h4>
-                    <p>{aiAnalysis.feedback.relevance.result}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="essay-grammar-card">
-                <div className="essay-card-header">
-                  <h3>Grammar Corrections</h3>
-                </div>
-                <div className="essay-card-content">
-                  {aiAnalysis.feedback.grammar && aiAnalysis.feedback.grammar.length > 0 ? (
-                    aiAnalysis.feedback.grammar.map((sentence, index) => (
-                      <div key={index} className="essay-feedback-item">
-                        <div className="essay-feedback-original">
-                          <h4>Original</h4>
-                          <p>{sentence.original}</p>
-                        </div>
-                        <div className="essay-feedback-corrected">
-                          <h4>Corrected</h4>
-                          <p>{sentence.corrected}</p>
-                        </div>
-                        <div className="essay-feedback-issues">
-                          <h4>Issues</h4>
-                          {sentence.issues.length === 1 && sentence.issues[0] === "No grammar mistakes found." ? (
-                            <div className="essay-no-issues">
-                              <CheckCircle size={16} />
-                              <span>No grammar mistakes found</span>
-                            </div>
-                          ) : (
-                            <ul className="essay-issues-list">
-                              {sentence.issues.map((issue, i) => (
-                                <li key={i}>{cleanIssueText(issue)}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="essay-no-issues-container">
-                      <CheckCircle size={40} />
-                      <p>Perfect grammar! No mistakes found in your essay.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       
-      {activeTab === 'vocabulary' && vocabEnhancement && (
-        <div className="essay-analysis-container">
-          <div className="essay-analysis-header">
-            <h2><Book size={20} /> Vocabulary Enhancement</h2>
-            <p>Suggestions for improving word choice and language variety</p>
+      {scoreResult.content.improvements && (
+        <div className="essay-feedback-points">
+          <h5>Areas for Improvement:</h5>
+          <ul className="essay-points-list">
+            {scoreResult.content.improvements.map((improvement, i) => (
+               <li key={i}>
+               <strong>{improvement.point}</strong>
+               {improvement.instead && (
+                 <div className="essay-instead">
+                   Instead of: <em>"{improvement.instead}"</em>
+                 </div>
+               )}
+               {improvement.better && (
+                 <div className="essay-better">
+                   Better: <em>"{improvement.better}"</em>
+                 </div>
+               )}
+             </li>
+           ))}
+         </ul>
+       </div>
+     )}
+     
+     {/* Handle old format with points array */}
+     {scoreResult.content.points && !scoreResult.content.strengths && (
+       <div className="essay-feedback-points">
+         <h5>Feedback Points:</h5>
+         <ul className="essay-points-list">
+           {scoreResult.content.points.map((point, i) => (
+             <li key={i}>{point}</li>
+           ))}
+         </ul>
+       </div>
+     )}
+   </div>
+   
+   {/* Organization Section */}
+   <div className="essay-score-criterion">
+     <div className="essay-criterion-header">
+       <h4>{scoreResult.organization.title || "Organization"}</h4>
+       <span className="essay-criterion-weight">25%</span>
+     </div>
+     <p>{scoreResult.organization.feedback}</p>
+     {renderProgressBar(scoreResult.organization.score, 10)}
+     
+     {scoreResult.organization.strengths && (
+       <div className="essay-feedback-points">
+         <h5>Strengths:</h5>
+         <ul className="essay-points-list">
+           {scoreResult.organization.strengths.map((strength, i) => (
+             <li key={i}>
+               <strong>{strength.point}</strong>
+               {strength.example && (
+                 <div className="essay-example">
+                   Example: <em>"{strength.example}"</em>
+                 </div>
+               )}
+             </li>
+           ))}
+         </ul>
+       </div>
+     )}
+     
+     {scoreResult.organization.improvements && (
+       <div className="essay-feedback-points">
+         <h5>Areas for Improvement:</h5>
+         <ul className="essay-points-list">
+           {scoreResult.organization.improvements.map((improvement, i) => (
+             <li key={i}>
+               <strong>{improvement.point}</strong>
+               {improvement.instead && (
+                 <div className="essay-instead">
+                   Instead of: <em>"{improvement.instead}"</em>
+                 </div>
+               )}
+               {improvement.better && (
+                 <div className="essay-better">
+                   Better: <em>"{improvement.better}"</em>
+                 </div>
+               )}
+             </li>
+           ))}
+         </ul>
+       </div>
+     )}
+     
+     {/* Handle old format with points array */}
+     {scoreResult.organization.points && !scoreResult.organization.strengths && (
+       <div className="essay-feedback-points">
+         <h5>Feedback Points:</h5>
+         <ul className="essay-points-list">
+           {scoreResult.organization.points.map((point, i) => (
+             <li key={i}>{point}</li>
+           ))}
+         </ul>
+       </div>
+     )}
+   </div>
+   
+   {/* Language Section */}
+   <div className="essay-score-criterion">
+     <div className="essay-criterion-header">
+       <h4>{scoreResult.language.title || "Language"}</h4>
+       <span className="essay-criterion-weight">25%</span>
+     </div>
+     <p>{scoreResult.language.feedback}</p>
+     {renderProgressBar(scoreResult.language.score, 10)}
+     
+     {scoreResult.language.strengths && (
+       <div className="essay-feedback-points">
+         <h5>Strengths:</h5>
+         <ul className="essay-points-list">
+           {scoreResult.language.strengths.map((strength, i) => (
+             <li key={i}>
+               <strong>{strength.point}</strong>
+               {strength.example && (
+                 <div className="essay-example">
+                   Example: <em>"{strength.example}"</em>
+                 </div>
+               )}
+             </li>
+           ))}
+         </ul>
+       </div>
+     )}
+     
+     {scoreResult.language.improvements && (
+       <div className="essay-feedback-points">
+         <h5>Areas for Improvement:</h5>
+         <ul className="essay-points-list">
+           {scoreResult.language.improvements.map((improvement, i) => (
+             <li key={i}>
+               <strong>{improvement.point}</strong>
+               {improvement.instead && (
+                 <div className="essay-instead">
+                   Instead of: <em>"{improvement.instead}"</em>
+                 </div>
+               )}
+               {improvement.better && (
+                 <div className="essay-better">
+                   Better: <em>"{improvement.better}"</em>
+                 </div>
+               )}
+             </li>
+           ))}
+         </ul>
+       </div>
+     )}
+     
+     {/* Handle old format with points array */}
+     {scoreResult.language.points && !scoreResult.language.strengths && (
+       <div className="essay-feedback-points">
+         <h5>Feedback Points:</h5>
+         <ul className="essay-points-list">
+           {scoreResult.language.points.map((point, i) => (
+             <li key={i}>{point}</li>
+           ))}
+         </ul>
+       </div>
+     )}
+   </div>
+   
+   {/* Coherence/Grammar Section */}
+   <div className="essay-score-criterion">
+     <div className="essay-criterion-header">
+       <h4>{scoreResult.coherence.title || "Coherence & Grammar"}</h4>
+       <span className="essay-criterion-weight">25%</span>
+     </div>
+     <p>{scoreResult.coherence.feedback}</p>
+     {renderProgressBar(scoreResult.coherence.score, 10)}
+     
+     {scoreResult.coherence.strengths && (
+       <div className="essay-feedback-points">
+         <h5>Strengths:</h5>
+         <ul className="essay-points-list">
+           {scoreResult.coherence.strengths.map((strength, i) => (
+             <li key={i}>
+               <strong>{strength.point}</strong>
+               {strength.example && (
+                 <div className="essay-example">
+                   Example: <em>"{strength.example}"</em>
+                 </div>
+               )}
+             </li>
+           ))}
+         </ul>
+       </div>
+     )}
+     
+     {scoreResult.coherence.improvements && (
+       <div className="essay-feedback-points">
+         <h5>Areas for Improvement:</h5>
+         <ul className="essay-points-list">
+           {scoreResult.coherence.improvements.map((improvement, i) => (
+             <li key={i}>
+               <strong>{improvement.point}</strong>
+               {improvement.instead && (
+                 <div className="essay-instead">
+                   Instead of: <em>"{improvement.instead}"</em>
+                 </div>
+               )}
+               {improvement.better && (
+                 <div className="essay-better">
+                   Better: <em>"{improvement.better}"</em>
+                 </div>
+               )}
+             </li>
+           ))}
+         </ul>
+       </div>
+     )}
+     
+     {/* Handle old format with points array */}
+     {scoreResult.coherence.points && !scoreResult.coherence.strengths && (
+       <div className="essay-feedback-points">
+         <h5>Feedback Points:</h5>
+         <ul className="essay-points-list">
+           {scoreResult.coherence.points.map((point, i) => (
+             <li key={i}>{point}</li>
+           ))}
+         </ul>
+       </div>
+     )}
+   </div>
+   
+   {/* Recommendations Section - Only for new API format */}
+   {scoreResult.recommendations && scoreResult.recommendations.length > 0 && (
+     <div className="essay-recommendations">
+       <h3>Key Recommendations</h3>
+       <ul className="essay-recommendations-list">
+         {scoreResult.recommendations.map((recommendation, i) => (
+           <li key={i}>{recommendation}</li>
+         ))}
+       </ul>
+     </div>
+   )}
+  </div>
+  
+  <div className="essay-feedback-actions">
+    <button 
+      className="essay-button essay-improve-button" 
+      onClick={enableEditing}
+    >
+      <Edit size={16} />
+      Try to Improve Your Score (New Attempt)
+    </button>
+  </div>
+</div>
+)}
+ 
+{activeTab === 'history' && (
+<div className="essay-history-container">
+  <div className="essay-history-header">
+    <h2><History size={20} /> Past Essays</h2>
+    <p>Review your previous essay submissions and scores</p>
+  </div>
+  
+  {pastEssays.length > 0 ? (
+    <div className="essay-history-grid">
+      {pastEssays.map((essay, index) => (
+        <div key={index} className="essay-history-item">
+          <div className="essay-history-topic">
+            <h3>{essay.topic}</h3>
+            <span className="essay-history-date">
+              {new Date(essay.timestamp).toLocaleDateString()}
+            </span>
           </div>
-          
-          <div className="essay-vocab-cards">
-            {vocabEnhancement.Status === "Success" && vocabEnhancement.feedback.length > 0 ? (
-              vocabEnhancement.feedback.map((item, index) => (
-                <div key={index} className="essay-vocab-card">
-                  <div className="essay-card-header">
-                    <h3>Enhancement {index + 1}</h3>
-                  </div>
-                  <div className="essay-card-content">
-                    <div className="essay-vocab-comparison">
-                      <div className="essay-feedback-original">
-                        <h4>Original</h4>
-                        <p>{item.original}</p>
-                      </div>
-                      <div className="essay-feedback-enhanced">
-                        <h4>Enhanced</h4>
-                        <p>{item.enhanced}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="essay-vocab-details">
-                      <div className="essay-replaced-words">
-                        <h4>Replaced Words</h4>
-                        {item.replaced === "No enhancement needed" ? (
-                          <div className="essay-no-issues">
-                            <CheckCircle size={16} />
-                            <span>No enhancement needed</span>
-                          </div>
-                        ) : (
-                          <ul className="essay-replaced-list">
-                            {item.replaced.split(", ").map((replacement, i) => (
-                              <li key={i}>{replacement}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      
-                      <div className="essay-word-meanings">
-                        <h4>Word Meanings</h4>
-                        {item.meanings === "No enhancement needed" ? (
-                          <div className="essay-no-issues">
-                            <CheckCircle size={16} />
-                            <span>No enhancement needed</span>
-                          </div>
-                        ) : (
-                          <ul className="essay-meanings-list">
-                            {item.meanings.split(", ").map((meaning, i) => (
-                              <li key={i}>{meaning}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="essay-no-issues-container">
-                <CheckCircle size={40} />
-                <p>Excellent vocabulary! No enhancements needed for your essay.</p>
+          <div className="essay-history-content">
+            <p>{essay.text.substring(0, 200)}...</p>
+          </div>
+          <div className="essay-history-footer">
+            <div className="essay-history-word-count">
+              <FileText size={14} />
+              <span>{countWords(essay.text)} words</span>
+            </div>
+            {essay.score && (
+              <div className="essay-history-score">
+                <Star size={14} />
+                <span>Score: {essay.score}/100</span>
               </div>
             )}
           </div>
         </div>
-      )}
-      
-      {activeTab === 'score' && scoreResult && (
-        <div className="essay-analysis-container">
-          <div className="essay-analysis-header">
-            <h2><Star size={20} /> Essay Score</h2>
-            <p>Evaluation of your essay based on content, organization, language, and coherence</p>
-          </div>
-          
-          <div className="essay-score-overview">
-            <div className="essay-score-circle" style={{ 
-              background: `conic-gradient(${getScoreColor(scoreResult.total)} ${scoreResult.total * 3.6}deg, #f0f0f0 ${scoreResult.total * 3.6}deg 360deg)` 
-            }}>
-              <div className="essay-score-inner">
-                <span className="essay-score-value">{scoreResult.total}</span>
-                <span className="essay-score-max">/100</span>
-              </div>
-            </div>
-            <div className="essay-score-feedback">
-              <h3>Overall Feedback</h3>
-              <p>{scoreResult.overallFeedback || "Keep practicing to improve your writing skills."}</p>
-            </div>
-          </div>
-          
-          <div className="essay-score-criteria">
-            {/* Content Section */}
-            <div className="essay-score-criterion">
-              <div className="essay-criterion-header">
-                <h4>{scoreResult.content.title || "Content"}</h4>
-                <span className="essay-criterion-weight">25%</span>
-              </div>
-              <p>{scoreResult.content.feedback}</p>
-              {renderProgressBar(scoreResult.content.score, 10)}
-              
-              {scoreResult.content.strengths && (
-                <div className="essay-feedback-points">
-                  <h5>Strengths:</h5>
-                  <ul className="essay-points-list">
-                    {scoreResult.content.strengths.map((strength, i) => (
-                      <li key={i}>
-                        <strong>{strength.point}</strong>
-                        {strength.example && (
-                          <div className="essay-example">
-                            Example: <em>"{strength.example}"</em>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              {scoreResult.content.improvements && (
-                <div className="essay-feedback-points">
-                  <h5>Areas for Improvement:</h5>
-                  <ul className="essay-points-list">
-                    {scoreResult.content.improvements.map((improvement, i) => (
-                       <li key={i}>
-                       <strong>{improvement.point}</strong>
-                       {improvement.instead && (
-                         <div className="essay-instead">
-                           Instead of: <em>"{improvement.instead}"</em>
-                         </div>
-                       )}
-                       {improvement.better && (
-                         <div className="essay-better">
-                           Better: <em>"{improvement.better}"</em>
-                         </div>
-                       )}
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-             
-             {/* Handle old format with points array */}
-             {scoreResult.content.points && !scoreResult.content.strengths && (
-               <div className="essay-feedback-points">
-                 <h5>Feedback Points:</h5>
-                 <ul className="essay-points-list">
-                   {scoreResult.content.points.map((point, i) => (
-                     <li key={i}>{point}</li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-           </div>
-           
-           {/* Organization Section */}
-           <div className="essay-score-criterion">
-             <div className="essay-criterion-header">
-               <h4>{scoreResult.organization.title || "Organization"}</h4>
-               <span className="essay-criterion-weight">25%</span>
-             </div>
-             <p>{scoreResult.organization.feedback}</p>
-             {renderProgressBar(scoreResult.organization.score, 10)}
-             
-             {scoreResult.organization.strengths && (
-               <div className="essay-feedback-points">
-                 <h5>Strengths:</h5>
-                 <ul className="essay-points-list">
-                   {scoreResult.organization.strengths.map((strength, i) => (
-                     <li key={i}>
-                       <strong>{strength.point}</strong>
-                       {strength.example && (
-                         <div className="essay-example">
-                           Example: <em>"{strength.example}"</em>
-                         </div>
-                       )}
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-             
-             {scoreResult.organization.improvements && (
-               <div className="essay-feedback-points">
-                 <h5>Areas for Improvement:</h5>
-                 <ul className="essay-points-list">
-                   {scoreResult.organization.improvements.map((improvement, i) => (
-                     <li key={i}>
-                       <strong>{improvement.point}</strong>
-                       {improvement.instead && (
-                         <div className="essay-instead">
-                           Instead of: <em>"{improvement.instead}"</em>
-                         </div>
-                       )}
-                       {improvement.better && (
-                         <div className="essay-better">
-                           Better: <em>"{improvement.better}"</em>
-                         </div>
-                       )}
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-             
-             {/* Handle old format with points array */}
-             {scoreResult.organization.points && !scoreResult.organization.strengths && (
-               <div className="essay-feedback-points">
-                 <h5>Feedback Points:</h5>
-                 <ul className="essay-points-list">
-                   {scoreResult.organization.points.map((point, i) => (
-                     <li key={i}>{point}</li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-           </div>
-           
-           {/* Language Section */}
-           <div className="essay-score-criterion">
-             <div className="essay-criterion-header">
-               <h4>{scoreResult.language.title || "Language"}</h4>
-               <span className="essay-criterion-weight">25%</span>
-             </div>
-             <p>{scoreResult.language.feedback}</p>
-             {renderProgressBar(scoreResult.language.score, 10)}
-             
-             {scoreResult.language.strengths && (
-               <div className="essay-feedback-points">
-                 <h5>Strengths:</h5>
-                 <ul className="essay-points-list">
-                   {scoreResult.language.strengths.map((strength, i) => (
-                     <li key={i}>
-                       <strong>{strength.point}</strong>
-                       {strength.example && (
-                         <div className="essay-example">
-                           Example: <em>"{strength.example}"</em>
-                         </div>
-                       )}
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-             
-             {scoreResult.language.improvements && (
-               <div className="essay-feedback-points">
-                 <h5>Areas for Improvement:</h5>
-                 <ul className="essay-points-list">
-                   {scoreResult.language.improvements.map((improvement, i) => (
-                     <li key={i}>
-                       <strong>{improvement.point}</strong>
-                       {improvement.instead && (
-                         <div className="essay-instead">
-                           Instead of: <em>"{improvement.instead}"</em>
-                         </div>
-                       )}
-                       {improvement.better && (
-                         <div className="essay-better">
-                           Better: <em>"{improvement.better}"</em>
-                         </div>
-                       )}
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-             
-             {/* Handle old format with points array */}
-             {scoreResult.language.points && !scoreResult.language.strengths && (
-               <div className="essay-feedback-points">
-                 <h5>Feedback Points:</h5>
-                 <ul className="essay-points-list">
-                   {scoreResult.language.points.map((point, i) => (
-                     <li key={i}>{point}</li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-           </div>
-           
-           {/* Coherence/Grammar Section */}
-           <div className="essay-score-criterion">
-             <div className="essay-criterion-header">
-               <h4>{scoreResult.coherence.title || "Coherence & Grammar"}</h4>
-               <span className="essay-criterion-weight">25%</span>
-             </div>
-             <p>{scoreResult.coherence.feedback}</p>
-             {renderProgressBar(scoreResult.coherence.score, 10)}
-             
-             {scoreResult.coherence.strengths && (
-               <div className="essay-feedback-points">
-                 <h5>Strengths:</h5>
-                 <ul className="essay-points-list">
-                   {scoreResult.coherence.strengths.map((strength, i) => (
-                     <li key={i}>
-                       <strong>{strength.point}</strong>
-                       {strength.example && (
-                         <div className="essay-example">
-                           Example: <em>"{strength.example}"</em>
-                         </div>
-                       )}
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-             
-             {scoreResult.coherence.improvements && (
-               <div className="essay-feedback-points">
-                 <h5>Areas for Improvement:</h5>
-                 <ul className="essay-points-list">
-                   {scoreResult.coherence.improvements.map((improvement, i) => (
-                     <li key={i}>
-                       <strong>{improvement.point}</strong>
-                       {improvement.instead && (
-                         <div className="essay-instead">
-                           Instead of: <em>"{improvement.instead}"</em>
-                         </div>
-                       )}
-                       {improvement.better && (
-                         <div className="essay-better">
-                           Better: <em>"{improvement.better}"</em>
-                         </div>
-                       )}
-                     </li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-             
-             {/* Handle old format with points array */}
-             {scoreResult.coherence.points && !scoreResult.coherence.strengths && (
-               <div className="essay-feedback-points">
-                 <h5>Feedback Points:</h5>
-                 <ul className="essay-points-list">
-                   {scoreResult.coherence.points.map((point, i) => (
-                     <li key={i}>{point}</li>
-                   ))}
-                 </ul>
-               </div>
-             )}
-           </div>
-           
-           {/* Recommendations Section - Only for new API format */}
-           {scoreResult.recommendations && scoreResult.recommendations.length > 0 && (
-             <div className="essay-recommendations">
-               <h3>Key Recommendations</h3>
-               <ul className="essay-recommendations-list">
-                 {scoreResult.recommendations.map((recommendation, i) => (
-                   <li key={i}>{recommendation}</li>
-                 ))}
-               </ul>
-             </div>
-           )}
-         </div>
-       </div>
-     )}
-     
-     {activeTab === 'history' && (
-       <div className="essay-history-container">
-         <div className="essay-history-header">
-           <h2><History size={20} /> Past Essays</h2>
-           <p>Review your previous essay submissions and scores</p>
-         </div>
-         
-         {pastEssays.length > 0 ? (
-           <div className="essay-history-grid">
-             {pastEssays.map((essay, index) => (
-               <div key={index} className="essay-history-item">
-                 <div className="essay-history-topic">
-                   <h3>{essay.topic}</h3>
-                   <span className="essay-history-date">
-                     {new Date(essay.timestamp).toLocaleDateString()}
-                   </span>
-                 </div>
-                 <div className="essay-history-content">
-                   <p>{essay.text.substring(0, 200)}...</p>
-                 </div>
-                 <div className="essay-history-footer">
-                   <div className="essay-history-word-count">
-                     <FileText size={14} />
-                     <span>{countWords(essay.text)} words</span>
-                   </div>
-                   {essay.score && (
-                     <div className="essay-history-score">
-                       <Star size={14} />
-                       <span>Score: {essay.score}/100</span>
-                     </div>
-                   )}
-                 </div>
-               </div>
-             ))}
-           </div>
-         ) : (
-           <div className="essay-no-history">
-             <AlertTriangle size={40} />
-             <p>You haven't submitted any essays yet.</p>
-             <button 
-               className="essay-start-button"
-               onClick={() => setActiveTab('write')}
-             >
-               <PenTool size={16} />
-               Start Writing
-             </button>
-           </div>
-         )}
-       </div>
-     )}
-   </div>
- );
+      ))}
+    </div>
+  ) : (
+    <div className="essay-no-history">
+      <AlertTriangle size={40} />
+      <p>You haven't submitted any essays yet.</p>
+      <button 
+        className="essay-start-button"
+        onClick={() => setActiveTab('write')}
+      >
+        <PenTool size={16} />
+        Start Writing
+      </button>
+    </div>
+  )}
+</div>
+)}
+</div>
+);
 }

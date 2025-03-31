@@ -925,3 +925,147 @@
 .dark-mode .trans-criterion-contribution {
   color: #aaa;
 }
+/* Add these new CSS classes to your existing UserTranslation.css file */
+
+/* Attempt indicator */
+.trans-attempt-indicator {
+  display: inline-block;
+  margin-left: 15px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6366f1;
+  background-color: rgba(99, 102, 241, 0.1);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* Action message styling */
+.trans-action-message {
+  padding: 12px;
+  background-color: #f9fafb;
+  border-radius: 6px;
+  margin: 12px 0;
+  border-left: 4px solid #6366f1;
+}
+
+.trans-action-message p {
+  margin: 0;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+/* Edit button styling */
+.trans-edit-button {
+  background-color: #6366f1 !important;
+  color: white !important;
+}
+
+.trans-edit-button:hover {
+  background-color: #4f46e5 !important;
+}
+
+/* Improve button for feedback tabs */
+.trans-feedback-actions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.trans-improve-button {
+  background-color: #6366f1;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.trans-improve-button:hover {
+  background-color: #4f46e5;
+}
+
+/* Enhanced tab styling */
+/* Enhanced tab styling */
+.trans-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 10px;
+}
+
+.trans-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  background-color: #f3f4f6;
+  color: #4b5563;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.trans-tab:hover {
+  background-color: #e5e7eb;
+}
+
+.trans-tab-active {
+  background-color: #6366f1;
+  color: white;
+  border-bottom: 3px solid #4f46e5;
+}
+
+/* Fade animations for tab content */
+.trans-analysis-container,
+.trans-score-container {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Make textarea read-only when not editing */
+.trans-textarea:disabled {
+  background-color: #f9fafb;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* Custom action buttons layout */
+.trans-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* Override submit button styles when in editing mode */
+.trans-submit-button {
+  background-color: #10b981;
+}
+
+.trans-refresh-button {
+  background-color: #6b7280;
+  color: white;
+}
+
+.trans-refresh-button:hover {
+  background-color: #4b5563;
+}

@@ -3,7 +3,8 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { 
   BookOpen, Save, Brain, Book, ArrowLeft, Clock, Play, History, 
-  FileText, Award, AlertCircle, CheckCircle, Edit, MessageSquare, Star 
+  FileText, Award, AlertCircle, CheckCircle, Edit, MessageSquare, Star, 
+  RefreshCw, Send, ChevronDown, ChevronUp
 } from "lucide-react";
 import './StoryCompletion.css';
 
@@ -22,6 +23,15 @@ export default function StoryCompletion() {
   const [activeFeedbackTab, setActiveFeedbackTab] = useState("write");
   const [pastStories, setPastStories] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [expandedStory, setExpandedStory] = useState(null);
+  
+  // New state variables for multiple attempts
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isReattempting, setIsReattempting] = useState(false);
+  const [currentAttempt, setCurrentAttempt] = useState(1);
+  const [submissionId, setSubmissionId] = useState(null);
+  const [selectedAttempt, setSelectedAttempt] = useState(null);
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -79,13 +89,16 @@ export default function StoryCompletion() {
       });
       setStory(response.data);
       setCompletedStory("");
-      setStoryFeedback(null);
-      setVocabFeedback(null);
-      setScoreResult(null);
+      resetFeedback();
       setTimer(15 * 60); // Reset to 15 minutes
       setIsRunning(false);
       setMessage("");
       setActiveFeedbackTab("write");
+      setIsSubmitted(false);
+      setIsReattempting(false);
+      setCurrentAttempt(1);
+      setSubmissionId(null);
+      setSelectedAttempt(null);
     } catch (error) {
       console.error("Error fetching story question", error);
       showMessage("Failed to load story.", "error");
@@ -94,9 +107,35 @@ export default function StoryCompletion() {
     }
   };
 
+  // Reset all feedback states
+  const resetFeedback = () => {
+    setStoryFeedback(null);
+    setVocabFeedback(null);
+    setScoreResult(null);
+  };
+
   // Start the timer and enable typing
   const startExercise = () => {
     setIsRunning(true);
+  };
+
+  // Enable reattempt mode
+  const startReattempt = () => {
+    setIsRunning(true);
+    // Important: We need to set isSubmitted to false when starting a reattempt
+    // so that only the save button shows up
+    setIsSubmitted(false);
+  };
+
+  // Prepare for a new attempt
+  const enableReattempt = () => {
+    const nextAttempt = currentAttempt + 1;
+    setIsReattempting(true);
+    setTimer(15 * 60);
+    resetFeedback();
+    setActiveFeedbackTab("write");
+    setCurrentAttempt(nextAttempt);
+    showMessage(`You can now improve your story for attempt #${nextAttempt}. Start the timer when ready.`, "info");
   };
 
   // Fetch past stories submitted by the user
@@ -112,23 +151,45 @@ export default function StoryCompletion() {
         return;
       }
       
-      const response = await axios.get("http://localhost:5000/user-stories", {
-        headers: { token },
-        params: { userId }
+      const response = await axios.get(`http://localhost:5000/user-stories/${userId}`, {
+        headers: { token }
       });
       
-      setPastStories(response.data);
-      
-      if (response.data.length === 0) {
-        showMessage("You don't have any past story submissions yet.", "info");
+      // The API returns an array of stories with an attempts array inside each story
+      if (Array.isArray(response.data)) {
+        setPastStories(response.data);
+        
+        if (response.data.length === 0) {
+          showMessage("You don't have any past story submissions yet.", "info");
+        }
+      } else {
+        console.error("Unexpected response format:", response.data);
+        showMessage("Failed to load past stories: Invalid response format", "error");
       }
     } catch (error) {
       console.error("Error fetching past stories:", error);
-      const errorMessage = error.response?.data?.message || "Server error";
+      console.error("Error details:", error.response?.data);
+      
+      const errorMessage = error.response?.data?.message || error.message || "Server error";
       showMessage(`Failed to load past stories: ${errorMessage}`, "error");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Toggle story expansion in past stories view
+  const toggleStoryExpansion = (storyId) => {
+    if (expandedStory === storyId) {
+      setExpandedStory(null);
+    } else {
+      setExpandedStory(storyId);
+    }
+  };
+
+  // Calculate word count for display
+  const calculateWordCount = (text) => {
+    if (!text) return 0;
+    return text.trim().split(/\s+/).length;
   };
 
   // Change active tab
@@ -144,6 +205,19 @@ export default function StoryCompletion() {
     setActiveFeedbackTab(tab);
   };
 
+  // Select a specific attempt in past stories view
+  const selectAttempt = (story, attemptNumber) => {
+    const attempt = story.attempts.find(a => a.attemptNumber === attemptNumber);
+    if (attempt) {
+      setSelectedAttempt({
+        storyId: story._id,
+        attemptNumber: attemptNumber,
+        completedStory: attempt.completedStory,
+        submittedAt: attempt.submittedAt
+      });
+    }
+  };
+
   // Submit the user's completed story to the database
   const submitCompletedStory = async () => {
     if (!completedStory.trim()) {
@@ -153,26 +227,47 @@ export default function StoryCompletion() {
 
     setIsLoading(true);
     try {
-      await axios.post(
-        "http://localhost:5000/submit-story",
-        {
-          userId: sessionStorage.getItem("userid"),
-          storyId: story._id,
-          completedStory,
-          timeSpent: 15 * 60 - timer,
-          wordCount
-        },
+      const endpoint = "http://localhost:5000/submit-story";
+
+      const payload = {
+        userId: sessionStorage.getItem("userid"),
+        storyId: story._id,
+        completedStory,
+        attemptNumber: currentAttempt
+      };
+
+      // If we already have a submission and are reattempting, include the submission ID
+      if (submissionId && isReattempting) {
+        payload.submissionId = submissionId;
+      }
+
+      const response = await axios.post(
+        endpoint,
+        payload,
         { headers: { token: sessionStorage.getItem("token") } }
       );
-      showMessage("Your story has been submitted successfully!", "success");
-      setIsRunning(false);
-      // Refresh past stories if we're in that tab
-      if (activeTab === "past") {
-        fetchPastStories();
+
+      if (response.data.Status === "Success" || response.data.message) {
+        // If we get a data object with the submission ID, save it
+        if (response.data.data && response.data.data.userStoryId) {
+          setSubmissionId(response.data.data.userStoryId);
+        }
+        
+        showMessage(`Your story ${isReattempting ? '(Attempt #' + currentAttempt + ')' : ''} has been submitted successfully!`, "success");
+        setIsSubmitted(true);
+        setIsRunning(false);
+        setIsReattempting(false); // Reset reattempting flag after successful submission
+        
+        // Refresh past stories if we're in that tab
+        if (activeTab === "past") {
+          fetchPastStories();
+        }
+      } else {
+        showMessage("Failed to submit story: " + (response.data.message || "Unknown error"), "error");
       }
     } catch (error) {
       console.error("Error submitting story", error);
-      showMessage("Failed to submit story.", "error");
+      showMessage("Failed to submit story: " + (error.response?.data?.message || "Server error"), "error");
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +289,7 @@ export default function StoryCompletion() {
       );
       if (response.data.Status === "Success") {
         setStoryFeedback(response.data);
-        showMessage("Story analysis completed!", "success");
+        showMessage(`Story analysis for attempt #${currentAttempt} completed!`, "success");
         setActiveFeedbackTab("analyze");
       } else {
         showMessage("Failed to analyze story: " + response.data.message, "error");
@@ -223,7 +318,7 @@ export default function StoryCompletion() {
       );
       if (response.data.Status === "Success") {
         setVocabFeedback(response.data.feedback);
-        showMessage("Vocabulary enhancement completed!", "success");
+        showMessage(`Vocabulary enhancement for attempt #${currentAttempt} completed!`, "success");
         setActiveFeedbackTab("vocab");
       } else {
         showMessage("Failed to enhance vocabulary: " + response.data.error, "error");
@@ -247,15 +342,19 @@ export default function StoryCompletion() {
     try {
       const response = await axios.post(
         "http://localhost:5000/score-story",
-        { originalStory: story.storyText, completedStory },
+        { 
+          originalStory: story.storyText, 
+          completedStory,
+          userId: sessionStorage.getItem("userid"),
+          storyId: story._id,
+          attemptNumber: currentAttempt
+        },
         { headers: { token: sessionStorage.getItem("token") } }
       );
       
-      console.log("Score Response:", response.data);
-      
       if (response.data.Status === "Success") {
         setScoreResult(response.data.feedback);
-        showMessage("Story scoring completed!", "success");
+        showMessage(`Story scoring for attempt #${currentAttempt} completed!`, "success");
         setActiveFeedbackTab("score");
       } else {
         showMessage("Failed to score: " + (response.data.message || "Unknown error"), "error");
@@ -273,6 +372,17 @@ export default function StoryCompletion() {
     const minutes = Math.floor(timeInSeconds / 60);
     const seconds = timeInSeconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Get color based on score
@@ -300,12 +410,25 @@ export default function StoryCompletion() {
     );
   };
 
+  // Render attempt indicator if on attempt > 1
+  const renderAttemptIndicator = () => {
+    if (currentAttempt > 1) {
+      return (
+        <div className="attempt-indicator">
+          <span>Attempt #{currentAttempt}</span>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="story-completion-container">
       <div className="story-header">
         <div className="story-title-section">
           <BookOpen className="title-icon" />
           <h1 className="story-title">Story Completion</h1>
+          {renderAttemptIndicator()}
         </div>
         <button 
           className="back-button" 
@@ -354,43 +477,45 @@ export default function StoryCompletion() {
               </div>
             </div>
 
-            {/* Feedback Tabs */}
-            <div className="feedback-tabs-container">
-              <button 
-                className={`feedback-tab ${activeFeedbackTab === "write" ? "active-feedback-tab" : ""}`}
-                onClick={() => handleFeedbackTabChange("write")}
-              >
-                <Edit size={16} />
-                Write
-              </button>
-              {storyFeedback && (
+            {/* Feedback Tabs - Only show when submitted */}
+            {isSubmitted && !isReattempting && (
+              <div className="feedback-tabs-container">
                 <button 
-                  className={`feedback-tab ${activeFeedbackTab === "analyze" ? "active-feedback-tab" : ""}`}
-                  onClick={() => handleFeedbackTabChange("analyze")}
+                  className={`feedback-tab ${activeFeedbackTab === "write" ? "active-feedback-tab" : ""}`}
+                  onClick={() => handleFeedbackTabChange("write")}
                 >
-                  <Brain size={16} />
-                  Analysis
+                  <Edit size={16} />
+                  Write
                 </button>
-              )}
-              {vocabFeedback && (
-                <button 
-                  className={`feedback-tab ${activeFeedbackTab === "vocab" ? "active-feedback-tab" : ""}`}
-                  onClick={() => handleFeedbackTabChange("vocab")}
-                >
-                  <Book size={16} />
-                  Vocabulary
-                </button>
-              )}
-              {scoreResult && (
-                <button 
-                  className={`feedback-tab ${activeFeedbackTab === "score" ? "active-feedback-tab" : ""}`}
-                  onClick={() => handleFeedbackTabChange("score")}
-                >
-                  <Star size={16} />
-                  Score
-                </button>
-              )}
-            </div>
+                {storyFeedback && (
+                  <button 
+                    className={`feedback-tab ${activeFeedbackTab === "analyze" ? "active-feedback-tab" : ""}`}
+                    onClick={() => handleFeedbackTabChange("analyze")}
+                  >
+                    <Brain size={16} />
+                    Analysis
+                  </button>
+                )}
+                {vocabFeedback && (
+                  <button 
+                    className={`feedback-tab ${activeFeedbackTab === "vocab" ? "active-feedback-tab" : ""}`}
+                    onClick={() => handleFeedbackTabChange("vocab")}
+                  >
+                    <Book size={16} />
+                    Vocabulary
+                  </button>
+                )}
+                {scoreResult && (
+                  <button 
+                    className={`feedback-tab ${activeFeedbackTab === "score" ? "active-feedback-tab" : ""}`}
+                    onClick={() => handleFeedbackTabChange("score")}
+                  >
+                    <Star size={16} />
+                    Score
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Writing Tab Content */}
             {activeFeedbackTab === "write" && (
@@ -400,7 +525,7 @@ export default function StoryCompletion() {
                   <p className="prompt-text">{story.storyText}</p>
                 </div>
 
-                {!isRunning ? (
+                {!isRunning && !isSubmitted && !isReattempting && (
                   <div className="start-container">
                     <button className="start-button" onClick={startExercise}>
                       <Play size={16} />
@@ -410,7 +535,21 @@ export default function StoryCompletion() {
                       Click the button above to begin the exercise. You'll have 15 minutes to complete the story.
                     </p>
                   </div>
-                ) : (
+                )}
+
+                {!isRunning && isReattempting && (
+                  <div className="start-container">
+                    <button className="start-button" onClick={startReattempt}>
+                      <Play size={16} />
+                      Start Reattempt #{currentAttempt}
+                    </button>
+                    <p className="start-instruction">
+                      Click the button above to begin your new attempt. You'll have 15 minutes to improve your story.
+                    </p>
+                  </div>
+                )}
+
+                {isRunning && (
                   <>
                     <textarea
                       className="story-textarea"
@@ -421,15 +560,31 @@ export default function StoryCompletion() {
                       spellCheck={true}
                     />
 
+                    {/* Only show Save button when not submitted yet */}
+                    {!isSubmitted && (
+                      <div className="action-buttons">
+                        <button 
+                          className="submit-button" 
+                          onClick={submitCompletedStory}
+                          disabled={!completedStory.trim()}
+                        >
+                          <Save size={16} />
+                          Save Story
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Show analysis buttons only after submission and not in reattempt mode */}
+                {isSubmitted && !isReattempting && (
+                  <div className="story-preview">
+                    <h3>Your Story {currentAttempt > 1 && `(Attempt #${currentAttempt})`}</h3>
+                    <div className="story-content-preview">
+                      <p>{completedStory}</p>
+                    </div>
+                    
                     <div className="action-buttons">
-                      <button 
-                        className="submit-button" 
-                        onClick={submitCompletedStory}
-                        disabled={!completedStory.trim()}
-                      >
-                        <Save size={16} />
-                        Submit
-                      </button>
                       <button 
                         className="analyze-button" 
                         onClick={analyzeWithAI}
@@ -454,8 +609,22 @@ export default function StoryCompletion() {
                         <Award size={16} />
                         Score
                       </button>
+                      <button 
+                        className="reattempt-button" 
+                        onClick={enableReattempt}
+                      >
+                        <RefreshCw size={16} />
+                        Try Again
+                      </button>
+                      <button 
+                        className="new-story-button" 
+                        onClick={fetchRandomStory}
+                      >
+                        <FileText size={16} />
+                        New Story
+                      </button>
                     </div>
-                  </>
+                  </div>
                 )}
               </>
             )}
@@ -465,7 +634,7 @@ export default function StoryCompletion() {
               <div className="feedback-section story-analysis">
                 <h3 className="feedback-title">
                   <Brain size={20} className="feedback-icon" /> 
-                  Story Analysis
+                  Story Analysis {currentAttempt > 1 && `(Attempt #${currentAttempt})`}
                 </h3>
                 {storyFeedback.Status === "Success" ? (
                   <>
@@ -523,6 +692,16 @@ export default function StoryCompletion() {
                         </div>
                       ))}
                     </div>
+
+                    <div className="feedback-actions">
+                      <button 
+                        className="reattempt-button" 
+                        onClick={enableReattempt}
+                      >
+                        <RefreshCw size={16} />
+                        Improve Story Using This Feedback
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <div className="error-message">
@@ -538,7 +717,7 @@ export default function StoryCompletion() {
               <div className="feedback-section vocab-enhancement">
                 <h3 className="feedback-title">
                   <Book size={20} className="feedback-icon" /> 
-                  Vocabulary Enhancement
+                  Vocabulary Enhancement {currentAttempt > 1 && `(Attempt #${currentAttempt})`}
                 </h3>
                 {vocabFeedback.map((sentence, index) => (
                   <div key={index} className="feedback-item">
@@ -587,6 +766,16 @@ export default function StoryCompletion() {
                     {index < vocabFeedback.length - 1 && <hr className="feedback-divider" />}
                   </div>
                 ))}
+
+                <div className="feedback-actions">
+                  <button 
+                    className="reattempt-button" 
+                    onClick={enableReattempt}
+                  >
+                    <RefreshCw size={16} />
+                    Improve Story Using These Enhancements
+                  </button>
+                </div>
               </div>
             )}
 
@@ -595,7 +784,7 @@ export default function StoryCompletion() {
               <div className="feedback-section score-feedback">
                 <h3 className="feedback-title">
                   <Award size={20} className="feedback-icon" /> 
-                  Story Score
+                  Story Score {currentAttempt > 1 && `(Attempt #${currentAttempt})`}
                 </h3>
                 
                 <div className="score-overview">
@@ -682,6 +871,16 @@ export default function StoryCompletion() {
                     </div>
                   </div>
                 </div>
+                
+                <div className="feedback-actions">
+                  <button 
+                    className="reattempt-button" 
+                    onClick={enableReattempt}
+                  >
+                    <RefreshCw size={16} />
+                    Try to Improve Your Score
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -706,25 +905,105 @@ export default function StoryCompletion() {
             <div className="stories-list">
               {pastStories.map((pastStory, index) => (
                 <div key={index} className="past-story-card">
-                  <h3 className="past-story-title">{pastStory.storyTitle || "Untitled Story"}</h3>
+                  <div className="past-story-header" onClick={() => toggleStoryExpansion(pastStory._id)}>
+                    <h3 className="past-story-title">{pastStory.storyTitle || "Untitled Story"}</h3>
+                    <button className="expand-button">
+                      {expandedStory === pastStory._id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                  </div>
+                  
                   <div className="past-story-details">
                     <span className="story-date">
-                      {new Date(pastStory.submittedAt).toLocaleDateString()}
+                      {new Date(pastStory.attempts[0]?.submittedAt || new Date()).toLocaleDateString()}
                     </span>
-                    <span className="story-stats">
-                      {pastStory.wordCount} words
+                    <span className="story-attempts">
+                      <RefreshCw size={14} />
+                      {pastStory.attempts.length} attempt{pastStory.attempts.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <div className="past-story-content">
-                    <div className="past-prompt">
-                      <h4>Original Prompt:</h4>
-                      <p>{pastStory.originalStory}</p>
+                  
+                  {expandedStory === pastStory._id && (
+                    <div className="expanded-story-content">
+                      <div className="past-prompt">
+                        <h4>Original Prompt:</h4>
+                        <p>{pastStory.originalStory}</p>
+                      </div>
+                      
+                      {/* Attempt Selection Tabs */}
+                      {pastStory.attempts.length > 1 && (
+                        <div className="attempt-tabs">
+                          {pastStory.attempts.map((attempt) => (
+                            <button 
+                              key={attempt.attemptNumber}
+                              className={`attempt-tab ${selectedAttempt && selectedAttempt.storyId === pastStory._id && selectedAttempt.attemptNumber === attempt.attemptNumber ? 'active-attempt' : ''}`}
+                              onClick={() => selectAttempt(pastStory, attempt.attemptNumber)}
+                            >
+                              Attempt #{attempt.attemptNumber}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Show selected attempt or default to first attempt */}
+                      {(selectedAttempt && selectedAttempt.storyId === pastStory._id) ? (
+                        <div className="past-completion">
+                          <div className="attempt-details">
+                            <h4>Your Continuation (Attempt #{selectedAttempt.attemptNumber}):</h4>
+                            <span className="attempt-date">
+                              {formatDate(selectedAttempt.submittedAt)}
+                            </span>
+                          </div>
+                          <p>{selectedAttempt.completedStory}</p>
+                          <div className="word-count-badge">
+                            <FileText size={14} />
+                            {calculateWordCount(selectedAttempt.completedStory)} words
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="past-completion">
+                          <div className="attempt-details">
+                            <h4>Your Continuation (Attempt #1):</h4>
+                            <span className="attempt-date">
+                              {formatDate(pastStory.attempts[0]?.submittedAt)}
+                            </span>
+                          </div>
+                          <p>{pastStory.attempts[0]?.completedStory}</p>
+                          <div className="word-count-badge">
+                            <FileText size={14} />
+                            {calculateWordCount(pastStory.attempts[0]?.completedStory)} words
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="past-story-actions">
+                        <button 
+                          className="try-again-button"
+                          onClick={() => {
+                            // Set the current story and enable reattempt mode
+                            setStory({
+                              _id: pastStory.storyId,
+                              title: pastStory.storyTitle || "Story Prompt",
+                              storyText: pastStory.originalStory
+                            });
+                            setCompletedStory("");
+                            resetFeedback();
+                            setTimer(15 * 60);
+                            setActiveTab("current");
+                            setActiveFeedbackTab("write");
+                            setIsReattempting(true);
+                            // Set attempt number based on existing attempts
+                            setCurrentAttempt(pastStory.attempts.length + 1);
+                            setSubmissionId(pastStory._id);
+                            showMessage(`Ready to make attempt #${pastStory.attempts.length + 1} for this story.`, "info");
+                          }}
+                        >
+                          <RefreshCw size={16} />
+                          Try This Story Again
+                        </button>
+                      </div>
                     </div>
-                    <div className="past-completion">
-                      <h4>Your Continuation:</h4>
-                      <p>{pastStory.completedStory}</p>
-                    </div>
-                  </div>
+                  )}
+                  
                   {index < pastStories.length - 1 && <hr className="story-divider" />}
                 </div>
               ))}
