@@ -1022,3 +1022,92 @@ button:disabled {
   color: #6b7280;
   margin-top: 12px;
 }
+.score-summary {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.score-summary-total {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+/* Score detail grid for expanded view */
+.score-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.score-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.score-detail-label {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.score-detail-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Toggle button for score details */
+.score-detail-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.score-detail-toggle:hover {
+  background-color: #f3f4f6;
+}
+
+/* Score indicator in attempt tabs */
+.attempt-score-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Container for word count and score in past stories */
+.past-story-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* Media queries for small screens */
+@media (max-width: 768px) {
+  .score-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

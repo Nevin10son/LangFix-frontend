@@ -15,7 +15,12 @@ import {
   Zap,
   Award,
   CheckCircle,
-  Edit
+  Edit,
+  History,
+  Calendar,
+  Clock,
+  Badge,
+  ChevronRight
 } from "lucide-react";
 import "./RephraseSentence.css";
 
@@ -29,17 +34,21 @@ export default function RephraseSentence() {
   const [enhancedRephraseFeedback, setEnhancedRephraseFeedback] = useState(null);
   const [scoreResult, setScoreResult] = useState(null);
   const [showTips, setShowTips] = useState(false);
-  const [activeTab, setActiveTab] = useState("write"); // write, grammar, enhance, score
+  const [activeTab, setActiveTab] = useState("write"); // write, grammar, enhance, score, history
   const [loading, setLoading] = useState({
     submit: false,
     enhance: false,
     grammar: false,
-    score: false
+    score: false,
+    history: false
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentAttempt, setCurrentAttempt] = useState(1);
   const [userRephrase, setUserRephrase] = useState(null);
+  const [rephraseHistory, setRephraseHistory] = useState([]);
+  const [expandedRephrase, setExpandedRephrase] = useState(null);
+  const [expandedAttempt, setExpandedAttempt] = useState(null);
   const navigate = useNavigate();
 
   // Rephrasing tips
@@ -83,6 +92,36 @@ export default function RephraseSentence() {
     } catch (error) {
       console.error("Error fetching rephrase question", error);
       showMessage("Failed to load question.", "error");
+    }
+  };
+
+  const fetchUserRephraseHistory = async () => {
+    setLoading({...loading, history: true});
+    try {
+      const userId = sessionStorage.getItem("userid");
+      if (!userId) {
+        showMessage("User ID not found in session.", "error");
+        return;
+      }
+
+      const response = await axios.get(`http://localhost:5000/user-rephrase-history?userId=${userId}`, {
+        headers: { token: sessionStorage.getItem("token") }
+      });
+
+      if (response.data.Status === "Success") {
+        setRephraseHistory(response.data.data);
+        setActiveTab("history");
+        if (response.data.data.length === 0) {
+          showMessage("No rephrase history found.", "info");
+        }
+      } else {
+        showMessage("Failed to fetch history: " + response.data.message, "error");
+      }
+    } catch (error) {
+      console.error("Error fetching rephrase history:", error);
+      showMessage("Failed to fetch rephrase history.", "error");
+    } finally {
+      setLoading({...loading, history: false});
     }
   };
 
@@ -268,6 +307,75 @@ export default function RephraseSentence() {
     showMessage(`You can now improve your response for attempt #${currentAttempt + 1}. Submit when ready.`, "info");
   };
 
+  const loadHistoricalAttempt = (rephrase, attempt) => {
+    setQuestion({
+      _id: rephrase.rephraseId,
+      text: rephrase.originalText,
+      difficulty: rephrase.difficulty,
+      category: rephrase.category
+    });
+    setRephrasedText(attempt.rephrasedText);
+    setIsSubmitted(true);
+    setIsEditing(false);
+    setCurrentAttempt(attempt.attemptNumber);
+    setUserRephrase({
+      _id: rephrase.rephraseId,
+      attempts: rephrase.attempts
+    });
+    
+    // If the attempt has a score, load it
+    if (attempt.score) {
+      setScoreResult({
+        CorrectWordUsage: {
+          score: attempt.score.semanticScore / 10,
+          feedback: "Semantic accuracy assessment from previous scoring.",
+          points: ["Previous scoring data"]
+        },
+        SentenceStructure: {
+          score: attempt.score.structureScore / 10,
+          feedback: "Sentence structure assessment from previous scoring.",
+          points: ["Previous scoring data"]
+        },
+        GrammarMistakes: {
+          score: attempt.score.grammarScore / 10,
+          feedback: "Grammar assessment from previous scoring.",
+          points: ["Previous scoring data"]
+        },
+        Completeness: {
+          score: attempt.score.creativityScore / 10,
+          feedback: "Creativity assessment from previous scoring.",
+          points: ["Previous scoring data"]
+        },
+        Total: attempt.score.totalScore,
+        Feedback: attempt.score.feedback || "Score analysis from previous attempt."
+      });
+      setActiveTab("score");
+    } else {
+      setActiveTab("write");
+      resetFeedback();
+    }
+    
+    showMessage(`Loaded historical attempt #${attempt.attemptNumber} for review.`, "info");
+  };
+
+  const toggleRephraseExpand = (rephraseId) => {
+    if (expandedRephrase === rephraseId) {
+      setExpandedRephrase(null);
+      setExpandedAttempt(null);
+    } else {
+      setExpandedRephrase(rephraseId);
+      setExpandedAttempt(null);
+    }
+  };
+
+  const toggleAttemptExpand = (attemptNumber) => {
+    if (expandedAttempt === attemptNumber) {
+      setExpandedAttempt(null);
+    } else {
+      setExpandedAttempt(attemptNumber);
+    }
+  };
+
   const cleanIssueText = (issue) => {
     return issue.replace(/\*\*(.*?)\*\*/g, "$1");
   };
@@ -279,6 +387,18 @@ export default function RephraseSentence() {
     if (score >= 60) return "#eab308"; // Satisfactory - Yellow
     if (score >= 40) return "#f97316"; // Needs Improvement - Orange
     return "#ef4444"; // Poor - Red
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
   };
 
   // Render progress bar for scores
@@ -310,7 +430,7 @@ export default function RephraseSentence() {
             <span>New Sentence</span>
           </button>
           <h1 className="page-title">Rephrase the Sentence</h1>
-          {currentAttempt > 1 && (
+          {currentAttempt > 1 && activeTab !== "history" && (
             <span className="attempt-indicator">Attempt #{currentAttempt}</span>
           )}
         </div>
@@ -324,56 +444,69 @@ export default function RephraseSentence() {
         </button>
       </header>
 
-      {isSubmitted && (
-        <div className="rephrase-tabs">
-          <button 
-            className={`rephrase-tab ${activeTab === 'write' ? 'rephrase-tab-active' : ''}`}
-            onClick={() => setActiveTab('write')}
-          >
-            <Send size={16} />
-            Write
-          </button>
-          <button 
-            className={`rephrase-tab ${activeTab === 'grammar' ? 'rephrase-tab-active' : ''}`}
-            onClick={() => {
-              if (rephraseFeedback) {
-                setActiveTab('grammar');
-              } else {
-                handleAnalyzeRephrase();
-              }
-            }}
-          >
-            <Check size={16} />
-            Grammar
-          </button>
-          <button 
-            className={`rephrase-tab ${activeTab === 'enhance' ? 'rephrase-tab-active' : ''}`}
-            onClick={() => {
-              if (enhancedRephraseFeedback) {
-                setActiveTab('enhance');
-              } else {
-                enhanceRephrase();
-              }
-            }}
-          >
-            <Book size={16} />
-            Enhance
-          </button>
-          <button 
-            className={`rephrase-tab ${activeTab === 'score' ? 'rephrase-tab-active' : ''}`}
-            onClick={() => {
-              if (scoreResult) {
-                setActiveTab('score');
-              } else {
-                scoreRephrase();
-              }
-            }}
-          >
-            <Star size={16} />
-            Score
-          </button>
-        </div>
-      )}
+      <div className="rephrase-tabs main-tabs">
+        <button 
+          className={`rephrase-tab ${activeTab === 'write' ? 'rephrase-tab-active' : ''}`}
+          onClick={() => setActiveTab('write')}
+        >
+          <Send size={16} />
+          Write
+        </button>
+        {isSubmitted && (
+          <>
+            <button 
+              className={`rephrase-tab ${activeTab === 'grammar' ? 'rephrase-tab-active' : ''}`}
+              onClick={() => {
+                if (rephraseFeedback) {
+                  setActiveTab('grammar');
+                } else {
+                  handleAnalyzeRephrase();
+                }
+              }}
+            >
+              <Check size={16} />
+              Grammar
+            </button>
+            <button 
+              className={`rephrase-tab ${activeTab === 'enhance' ? 'rephrase-tab-active' : ''}`}
+              onClick={() => {
+                if (enhancedRephraseFeedback) {
+                  setActiveTab('enhance');
+                } else {
+                  enhanceRephrase();
+                }
+              }}
+            >
+              <Book size={16} />
+              Enhance
+            </button>
+            <button 
+              className={`rephrase-tab ${activeTab === 'score' ? 'rephrase-tab-active' : ''}`}
+              onClick={() => {
+                if (scoreResult) {
+                  setActiveTab('score');
+                } else {
+                  scoreRephrase();
+                }
+              }}
+            >
+              <Star size={16} />
+              Score
+            </button>
+          </>
+        )}
+        <button 
+          className={`rephrase-tab ${activeTab === 'history' ? 'rephrase-tab-active' : ''}`}
+          onClick={() => {
+            if (activeTab !== 'history') {
+              fetchUserRephraseHistory();
+            }
+          }}
+        >
+          <History size={16} />
+          History
+        </button>
+      </div>
       
       {message && (
         <div className={`message-banner message-${messageType}`}>
@@ -383,7 +516,212 @@ export default function RephraseSentence() {
       )}
 
       <div className="rephrase-container">
-        {question ? (
+        {/* History Tab */}
+        {activeTab === 'history' && (
+          <div className="history-container">
+            <div className="card history-card">
+              <div className="card-header">
+                <h3><History size={20} /> Your Rephrase History</h3>
+                <p>Review all your past rephrase attempts and scores</p>
+              </div>
+              
+              <div className="card-content">
+                {loading.history ? (
+                  <div className="loading-container">
+                    <div className="loading-spinner"></div>
+                    <p>Loading history...</p>
+                  </div>
+                ) : rephraseHistory.length === 0 ? (
+                  <div className="no-history">
+                    <p>You haven't submitted any rephrased sentences yet.</p>
+                    <button 
+                      className="primary-button" 
+                      onClick={fetchRandomRephrase}
+                    >
+                      <RefreshCw size={18} />
+                      Get Started with a Sentence
+                    </button>
+                  </div>
+                ) : (
+                  <div className="history-list">
+                    {rephraseHistory.map((rephrase, index) => (
+                      <div 
+                        key={index} 
+                        className={`history-item ${expandedRephrase === rephrase.rephraseId ? 'expanded' : ''}`}
+                      >
+                        <div 
+                          className="history-item-header"
+                          onClick={() => toggleRephraseExpand(rephrase.rephraseId)}
+                        >
+                          <div className="history-item-info">
+                            <h4>Original: {rephrase.originalText}</h4>
+                            <div className="history-meta">
+                              <span className="history-meta-item">
+                                <Calendar size={14} />
+                                {formatDate(rephrase.attempts[0].submittedAt)}
+                              </span>
+                              <span className="history-meta-item">
+                                <Badge size={14} />
+                                {rephrase.difficulty}
+                              </span>
+                              {rephrase.category && (
+                                <span className="history-meta-item">
+                                  <Book size={14} />
+                                  {rephrase.category}
+                                </span>
+                              )}
+                              <span className="history-meta-item">
+                                <Clock size={14} />
+                                {rephrase.attempts.length} {rephrase.attempts.length === 1 ? 'attempt' : 'attempts'}
+                              </span>
+                            </div>
+                          </div>
+                          <button className="expand-button">
+                            {expandedRephrase === rephrase.rephraseId ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                          </button>
+                        </div>
+                        
+                        {expandedRephrase === rephrase.rephraseId && (
+                          <div className="history-attempts">
+                            {rephrase.attempts.map((attempt, attemptIndex) => (
+                              <div 
+                                key={attemptIndex} 
+                                className={`history-attempt ${expandedAttempt === attempt.attemptNumber ? 'expanded' : ''}`}
+                              >
+                                <div 
+                                  className="history-attempt-header"
+                                  onClick={() => toggleAttemptExpand(attempt.attemptNumber)}
+                                >
+                                  <div className="attempt-info">
+                                    <h5>Attempt #{attempt.attemptNumber}</h5>
+                                    <span className="attempt-date">{formatDate(attempt.submittedAt)}</span>
+                                  </div>
+                                  
+                                  {attempt.score && (
+                                    <div className="attempt-score">
+                                      <div 
+                                        className="score-badge"
+                                        style={{ backgroundColor: getScoreColor(attempt.score.totalScore) }}
+                                      >
+                                        {attempt.score.totalScore}/100
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  <button className="expand-button">
+                                    {expandedAttempt === attempt.attemptNumber ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                  </button>
+                                </div>
+                                
+                                {expandedAttempt === attempt.attemptNumber && (
+                                  <div className="attempt-details">
+                                    <div className="attempt-text">
+                                      <h6>Your Rephrased Version:</h6>
+                                      <p>{attempt.rephrasedText}</p>
+                                    </div>
+                                    
+                                    {attempt.score && (
+                                      <div className="attempt-score-details">
+                                        <h6>Score Breakdown:</h6>
+                                        <div className="score-categories">
+                                          <div className="score-category">
+                                            <span>Semantic Accuracy:</span>
+                                            <div className="mini-progress-bar">
+                                              <div 
+                                                className="mini-progress-fill" 
+                                                style={{ 
+                                                  width: `${attempt.score.semanticScore}%`,
+                                                  backgroundColor: getScoreColor(attempt.score.semanticScore)
+                                                }}
+                                              ></div>
+                                              <span>{attempt.score.semanticScore}/100</span>
+                                            </div>
+                                          </div>
+                                          <div className="score-category">
+                                            <span>Sentence Structure:</span>
+                                            <div className="mini-progress-bar">
+                                              <div 
+                                                className="mini-progress-fill" 
+                                                style={{ 
+                                                  width: `${attempt.score.structureScore}%`,
+                                                  backgroundColor: getScoreColor(attempt.score.structureScore)
+                                                }}
+                                              ></div>
+                                              <span>{attempt.score.structureScore}/100</span>
+                                            </div>
+                                          </div>
+                                          <div className="score-category">
+                                            <span>Grammar:</span>
+                                            <div className="mini-progress-bar">
+                                              <div 
+                                                className="mini-progress-fill" 
+                                                style={{ 
+                                                  width: `${attempt.score.grammarScore}%`,
+                                                  backgroundColor: getScoreColor(attempt.score.grammarScore)
+                                                }}
+                                              ></div>
+                                              <span>{attempt.score.grammarScore}/100</span>
+                                            </div>
+                                          </div>
+                                          <div className="score-category">
+                                            <span>Creativity:</span>
+                                            <div className="mini-progress-bar">
+                                              <div 
+                                                className="mini-progress-fill" 
+                                                style={{ 
+                                                  width: `${attempt.score.creativityScore}%`,
+                                                  backgroundColor: getScoreColor(attempt.score.creativityScore)
+                                                }}
+                                              ></div>
+                                              <span>{attempt.score.creativityScore}/100</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        
+                                        {attempt.score.feedback && (
+                                          <div className="score-feedback">
+                                            <h6>Feedback:</h6>
+                                            <p>{attempt.score.feedback}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    
+                                    <div className="attempt-actions">
+                                      <button
+                                        className="primary-button"
+                                        onClick={() => loadHistoricalAttempt(rephrase, attempt)}
+                                      >
+                                        <ChevronRight size={16} />
+                                        Review This Attempt
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="history-actions">
+                  <button
+                    className="secondary-button refresh-button"
+                    onClick={fetchRandomRephrase}
+                  >
+                    <RefreshCw size={18} />
+                    Try New Sentence
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {question && activeTab !== 'history' ? (
           <>
             {/* Write Tab */}
             {activeTab === 'write' && (
@@ -764,7 +1102,7 @@ export default function RephraseSentence() {
               </div>
             )}
           </>
-        ) : (
+        ) : activeTab !== 'history' && (
           <div className="loading-container">
             <div className="loading-spinner"></div>
             <p>Loading question...</p>

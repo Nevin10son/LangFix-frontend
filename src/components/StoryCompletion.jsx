@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   BookOpen, Save, Brain, Book, ArrowLeft, Clock, Play, History, 
   FileText, Award, AlertCircle, CheckCircle, Edit, MessageSquare, Star, 
-  RefreshCw, Send, ChevronDown, ChevronUp
+  RefreshCw, Send, ChevronDown, ChevronUp, Zap, Settings
 } from "lucide-react";
 import './StoryCompletion.css';
 
@@ -31,6 +31,7 @@ export default function StoryCompletion() {
   const [currentAttempt, setCurrentAttempt] = useState(1);
   const [submissionId, setSubmissionId] = useState(null);
   const [selectedAttempt, setSelectedAttempt] = useState(null);
+  const [showScoreDetails, setShowScoreDetails] = useState(false);
   
   const navigate = useNavigate();
 
@@ -99,6 +100,7 @@ export default function StoryCompletion() {
       setCurrentAttempt(1);
       setSubmissionId(null);
       setSelectedAttempt(null);
+      setShowScoreDetails(false);
     } catch (error) {
       console.error("Error fetching story question", error);
       showMessage("Failed to load story.", "error");
@@ -181,8 +183,11 @@ export default function StoryCompletion() {
   const toggleStoryExpansion = (storyId) => {
     if (expandedStory === storyId) {
       setExpandedStory(null);
+      setSelectedAttempt(null);
     } else {
       setExpandedStory(storyId);
+      setSelectedAttempt(null);
+      setShowScoreDetails(false);
     }
   };
 
@@ -205,6 +210,11 @@ export default function StoryCompletion() {
     setActiveFeedbackTab(tab);
   };
 
+  // Toggle score details display
+  const toggleScoreDetails = () => {
+    setShowScoreDetails(!showScoreDetails);
+  };
+
   // Select a specific attempt in past stories view
   const selectAttempt = (story, attemptNumber) => {
     const attempt = story.attempts.find(a => a.attemptNumber === attemptNumber);
@@ -213,8 +223,11 @@ export default function StoryCompletion() {
         storyId: story._id,
         attemptNumber: attemptNumber,
         completedStory: attempt.completedStory,
-        submittedAt: attempt.submittedAt
+        submittedAt: attempt.submittedAt,
+        scores: attempt.scores,
+        wordCount: attempt.wordCount || calculateWordCount(attempt.completedStory)
       });
+      setShowScoreDetails(false);
     }
   };
 
@@ -420,6 +433,59 @@ export default function StoryCompletion() {
       );
     }
     return null;
+  };
+
+  // Render score summary for an attempt
+  const renderScoreSummary = (scores) => {
+    if (!scores) return null;
+    
+    return (
+      <div className="score-summary">
+        <div className="score-summary-total" style={{ color: getScoreColor(scores.total) }}>
+          <Award size={16} />
+          <span>{scores.total}/100</span>
+        </div>
+        
+        {showScoreDetails && (
+          <div className="score-detail-grid">
+            <div className="score-detail-item">
+              <span className="score-detail-label">Narrative Flow:</span>
+              <span className="score-detail-value" style={{ color: getScoreColor(scores.narrativeFlow * 10) }}>
+                {scores.narrativeFlow}/10
+              </span>
+            </div>
+            <div className="score-detail-item">
+              <span className="score-detail-label">Creativity:</span>
+              <span className="score-detail-value" style={{ color: getScoreColor(scores.creativity * 10) }}>
+                {scores.creativity}/10
+              </span>
+            </div>
+            <div className="score-detail-item">
+              <span className="score-detail-label">Structure:</span>
+              <span className="score-detail-value" style={{ color: getScoreColor(scores.structure * 10) }}>
+                {scores.structure}/10
+              </span>
+            </div>
+            <div className="score-detail-item">
+              <span className="score-detail-label">Grammar:</span>
+              <span className="score-detail-value" style={{ color: getScoreColor(scores.grammar * 10) }}>
+                {scores.grammar}/10
+              </span>
+            </div>
+          </div>
+        )}
+        
+        <button 
+          className="score-detail-toggle" 
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleScoreDetails();
+          }}
+        >
+          {showScoreDetails ? 'Hide Details' : 'Show Details'} {showScoreDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -939,6 +1005,14 @@ export default function StoryCompletion() {
                               onClick={() => selectAttempt(pastStory, attempt.attemptNumber)}
                             >
                               Attempt #{attempt.attemptNumber}
+                              {attempt.scores && (
+                                <span 
+                                  className="attempt-score-indicator"
+                                  style={{ color: getScoreColor(attempt.scores.total) }}
+                                >
+                                  <Award size={12} /> {attempt.scores.total}
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -954,9 +1028,15 @@ export default function StoryCompletion() {
                             </span>
                           </div>
                           <p>{selectedAttempt.completedStory}</p>
-                          <div className="word-count-badge">
-                            <FileText size={14} />
-                            {calculateWordCount(selectedAttempt.completedStory)} words
+                          <div className="past-story-metadata">
+                            <div className="word-count-badge">
+                              <FileText size={14} />
+                              {selectedAttempt.wordCount} words
+                            </div>
+                            
+                            {selectedAttempt.scores && (
+                              renderScoreSummary(selectedAttempt.scores)
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -968,9 +1048,15 @@ export default function StoryCompletion() {
                             </span>
                           </div>
                           <p>{pastStory.attempts[0]?.completedStory}</p>
-                          <div className="word-count-badge">
-                            <FileText size={14} />
-                            {calculateWordCount(pastStory.attempts[0]?.completedStory)} words
+                          <div className="past-story-metadata">
+                            <div className="word-count-badge">
+                              <FileText size={14} />
+                              {pastStory.attempts[0]?.wordCount || calculateWordCount(pastStory.attempts[0]?.completedStory)} words
+                            </div>
+                            
+                            {pastStory.attempts[0]?.scores && (
+                              renderScoreSummary(pastStory.attempts[0].scores)
+                            )}
                           </div>
                         </div>
                       )}

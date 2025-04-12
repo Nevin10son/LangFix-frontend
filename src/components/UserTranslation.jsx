@@ -15,7 +15,17 @@ import {
   Lightbulb,
   Info,
   Edit,
-  Send
+  Send,
+  History,
+  Clock,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  TrendingUp,
+  TrendingDown,
+  Medal,
+  AlertCircle
 } from "lucide-react";
 import "./UserTranslation.css";
 
@@ -31,13 +41,20 @@ const TranslationTask = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [scoring, setScoring] = useState(false);
   const [showTips, setShowTips] = useState(true);
-  const [activeTab, setActiveTab] = useState("translation"); // translation, analysis, score
+  const [activeTab, setActiveTab] = useState("translation"); // translation, analysis, score, history
   
-  // New state variables for attempt tracking
+  // State variables for attempt tracking
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentAttempt, setCurrentAttempt] = useState(1);
   const [userTranslationDoc, setUserTranslationDoc] = useState(null);
+
+  // State variables for history feature
+  const [pastTranslations, setPastTranslations] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [expandedTranslation, setExpandedTranslation] = useState(null);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
+  const [expandedScoreView, setExpandedScoreView] = useState(null);
 
   useEffect(() => {
     fetchTranslationText();
@@ -79,6 +96,59 @@ const TranslationTask = () => {
       setMessage("Error fetching translation text");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPastTranslations = async () => {
+    const token = sessionStorage.getItem("token");
+    const userId = sessionStorage.getItem("userid");
+    setLoadingHistory(true);
+
+    try {
+      const response = await axios.get(`http://localhost:5000/user-translations?userId=${userId}`, {
+        headers: { token },
+      });
+
+      if (response.data.Status === "Success") {
+        setPastTranslations(response.data.translations);
+        if (response.data.translations.length === 0) {
+          setMessageType("info");
+          setMessage("You haven't submitted any translations yet.");
+        }
+      } else {
+        setMessageType("error");
+        setMessage(response.data.message || "Failed to load past translations");
+      }
+    } catch (error) {
+      console.error("Error fetching past translations:", error);
+      setMessageType("error");
+      setMessage("Error loading translation history");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const fetchTranslationDetails = async (translationId) => {
+    const token = sessionStorage.getItem("token");
+    setLoadingHistory(true);
+
+    try {
+      const response = await axios.get(`http://localhost:5000/user-translation/${translationId}`, {
+        headers: { token },
+      });
+
+      if (response.data.Status === "Success") {
+        setSelectedHistoryItem(response.data.translation);
+      } else {
+        setMessageType("error");
+        setMessage(response.data.message || "Failed to load translation details");
+      }
+    } catch (error) {
+      console.error("Error fetching translation details:", error);
+      setMessageType("error");
+      setMessage("Error loading translation details");
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -260,6 +330,16 @@ const TranslationTask = () => {
     return "#F44336"; // Poor - Red
   };
 
+  const getScoreLabel = (score) => {
+    const numScore = typeof score === 'string' ? parseFloat(score) : score;
+    
+    if (numScore >= 90) return "Excellent";
+    if (numScore >= 75) return "Good";
+    if (numScore >= 60) return "Satisfactory";
+    if (numScore >= 40) return "Needs Improvement";
+    return "Poor";
+  };
+
   const renderProgressBar = (score, maxScore = 10) => {
     // Convert score to number if it's a string
     const numScore = typeof score === 'string' ? parseFloat(score) : score;
@@ -276,6 +356,39 @@ const TranslationTask = () => {
       </div>
     );
   };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "Unknown date";
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
+  const toggleExpand = (id) => {
+    setExpandedTranslation(expandedTranslation === id ? null : id);
+  };
+
+  const toggleScoreView = (id) => {
+    setExpandedScoreView(expandedScoreView === id ? null : id);
+  };
+
+  const loadHistoryItem = (item) => {
+    setSelectedHistoryItem(item);
+    setExpandedScoreView(null);
+    fetchTranslationDetails(item.userTranslationId);
+  };
+  
+  useEffect(() => {
+    // Fetch past translations when the history tab is activated
+    if (activeTab === "history") {
+      fetchPastTranslations();
+    }
+  }, [activeTab]);
 
   return (
     <div className="trans-container">
@@ -337,43 +450,55 @@ const TranslationTask = () => {
         </div>
       )}
 
-      {isSubmitted && (
-        <div className="trans-tabs">
-          <button 
-            className={`trans-tab ${activeTab === 'translation' ? 'trans-tab-active' : ''}`}
-            onClick={() => setActiveTab('translation')}
-          >
-            <BookOpen size={16} />
-            Translation
-          </button>
-          <button 
-            className={`trans-tab ${activeTab === 'analysis' ? 'trans-tab-active' : ''}`}
-            onClick={() => {
-              if (aiAnalysis) {
-                setActiveTab('analysis');
-              } else {
-                analyzeTranslation();
-              }
-            }}
-          >
-            <Search size={16} />
-            Analysis
-          </button>
-          <button 
-            className={`trans-tab ${activeTab === 'score' ? 'trans-tab-active' : ''}`}
-            onClick={() => {
-              if (scoreAnalysis) {
-                setActiveTab('score');
-              } else {
-                scoreTranslation();
-              }
-            }}
-          >
-            <Star size={16} />
-            Score
-          </button>
-        </div>
-      )}
+      <div className="trans-tabs">
+        <button 
+          className={`trans-tab ${activeTab === 'translation' ? 'trans-tab-active' : ''}`}
+          onClick={() => setActiveTab('translation')}
+        >
+          <BookOpen size={16} />
+          Translation
+        </button>
+        
+        {isSubmitted && (
+          <>
+            <button 
+              className={`trans-tab ${activeTab === 'analysis' ? 'trans-tab-active' : ''}`}
+              onClick={() => {
+                if (aiAnalysis) {
+                  setActiveTab('analysis');
+                } else {
+                  analyzeTranslation();
+                }
+              }}
+            >
+              <Search size={16} />
+              Analysis
+            </button>
+            <button 
+              className={`trans-tab ${activeTab === 'score' ? 'trans-tab-active' : ''}`}
+              onClick={() => {
+                if (scoreAnalysis) {
+                  setActiveTab('score');
+                } else {
+                  scoreTranslation();
+                }
+              }}
+            >
+              <Star size={16} />
+              Score
+            </button>
+          </>
+        )}
+        
+        {/* History Tab */}
+        <button 
+          className={`trans-tab ${activeTab === 'history' ? 'trans-tab-active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          <History size={16} />
+          History
+        </button>
+      </div>
 
       {activeTab === 'translation' && (
         <div className="trans-workspace">
@@ -740,6 +865,369 @@ const TranslationTask = () => {
               Try to Improve Your Score (New Attempt)
             </button>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'history' && (
+        <div className="trans-history-container">
+          <div className="trans-history-header">
+            <h2><History size={20} /> Translation History</h2>
+            <p>View all your previous translation attempts and progress</p>
+          </div>
+          
+          {loadingHistory ? (
+            <div className="trans-loading-container">
+              <div className="trans-loader"></div>
+              <p>Loading your translation history...</p>
+            </div>
+          ) : (
+            <div className="trans-history-content">
+              {pastTranslations.length === 0 ? (
+                <div className="trans-empty-state">
+                  <div className="trans-empty-icon">
+                    <Clock size={48} />
+                  </div>
+                  <h3>No Translations Yet</h3>
+                  <p>You haven't completed any translations yet. Start translating to build your history!</p>
+                </div>
+              ) : (
+                <div className="trans-history-grid">
+                  <div className="trans-history-list">
+                    <h3>Your Past Translations</h3>
+                    {pastTranslations.map((translation, index) => (
+                      <div 
+                        key={translation.userTranslationId} 
+                        className={`trans-history-item ${selectedHistoryItem?.userTranslationId === translation.userTranslationId ? 'trans-history-item-selected' : ''}`}
+                        onClick={() => loadHistoryItem(translation)}
+                      >
+                        <div className="trans-history-item-header">
+                          <div className="trans-history-item-title">
+                            <h4>Translation #{index + 1}</h4>
+                            <div className="trans-item-badges">
+                              <span className="trans-attempt-count">
+                                {translation.totalAttempts} attempt{translation.totalAttempts !== 1 ? 's' : ''}
+                              </span>
+                              
+                              {translation.scoreStats && translation.scoreStats.highestScore && (
+                                <span 
+                                  className="trans-score-badge"
+                                  style={{ backgroundColor: getScoreColor(translation.scoreStats.highestScore) }}
+                                >
+                                  Best: {translation.scoreStats.highestScore}/100
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="trans-history-item-date">
+                            <Calendar size={14} />
+                            <span>{formatDate(translation.latestAttempt.submittedAt)}</span>
+                          </div>
+                        </div>
+                        <div className="trans-history-item-preview">
+                          <div className="trans-history-original">
+                            <strong>Original:</strong>
+                            <p>{translation.originalText.length > 100 
+                                ? translation.originalText.substring(0, 100) + '...' 
+                                : translation.originalText}</p>
+                          </div>
+                          <div className="trans-history-translation">
+                            <strong>Latest Translation:</strong>
+                            <p>{translation.latestAttempt.translatedText.length > 100 
+                                ? translation.latestAttempt.translatedText.substring(0, 100) + '...' 
+                                : translation.latestAttempt.translatedText}</p>
+                          </div>
+                        </div>
+                        
+                        {translation.scoreStats && (
+                          <div className="trans-history-score-summary">
+                            {translation.scoreStats.totalScored > 0 ? (
+                              <>
+                                <div className="trans-score-progress">
+                                  <div className="trans-score-stats">
+                                    <div className="trans-score-stat">
+                                      <TrendingUp size={14} color={getScoreColor(translation.scoreStats.highestScore)} />
+                                      <span>Best: {translation.scoreStats.highestScore}/100 (Attempt #{translation.scoreStats.highestScoreAttempt})</span>
+                                    </div>
+                                    <div className="trans-score-stat">
+                                      <TrendingDown size={14} color={getScoreColor(translation.scoreStats.lowestScore)} />
+                                      <span>Lowest: {translation.scoreStats.lowestScore}/100 (Attempt #{translation.scoreStats.lowestScoreAttempt})</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="trans-no-scores">
+                                <AlertCircle size={14} />
+                                <span>No scores yet</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="trans-history-details">
+                    {selectedHistoryItem ? (
+                      <div className="trans-history-detail-content">
+                        <div className="trans-history-detail-header">
+                          <h3>Translation Details</h3>
+                          <div className="trans-history-meta">
+                            <span className="trans-history-id">ID: {selectedHistoryItem.userTranslationId}</span>
+                            <span className="trans-history-attempts">
+                              {selectedHistoryItem.totalAttempts} attempt{selectedHistoryItem.totalAttempts !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {selectedHistoryItem.scoreStats && selectedHistoryItem.scoreStats.totalScored > 0 && (
+                          <div className="trans-history-score-overview">
+                            <h4>Score Overview</h4>
+                            <div className="trans-score-overview-grid">
+                              <div className="trans-score-highlight">
+                                <div className="trans-score-highlight-header">
+                                  <Medal size={18} color={getScoreColor(selectedHistoryItem.scoreStats.highestScore)} />
+                                  <h5>Highest Score</h5>
+                                </div>
+                                <div className="trans-score-highlight-value">
+                                  <span style={{ color: getScoreColor(selectedHistoryItem.scoreStats.highestScore) }}>
+                                    {selectedHistoryItem.scoreStats.highestScore}/100
+                                  </span>
+                                  <div className="trans-score-highlight-info">
+                                    <span>Attempt #{selectedHistoryItem.scoreStats.highestScoreAttempt}</span>
+                                    <span>{getScoreLabel(selectedHistoryItem.scoreStats.highestScore)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="trans-score-highlight">
+                                <div className="trans-score-highlight-header">
+                                  <AlertCircle size={18} color={getScoreColor(selectedHistoryItem.scoreStats.lowestScore)} />
+                                  <h5>Lowest Score</h5>
+                                </div>
+                                <div className="trans-score-highlight-value">
+                                  <span style={{ color: getScoreColor(selectedHistoryItem.scoreStats.lowestScore) }}>
+                                    {selectedHistoryItem.scoreStats.lowestScore}/100
+                                  </span>
+                                  <div className="trans-score-highlight-info">
+                                    <span>Attempt #{selectedHistoryItem.scoreStats.lowestScoreAttempt}</span>
+                                    <span>{getScoreLabel(selectedHistoryItem.scoreStats.lowestScore)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="trans-history-original-text">
+                          <h4>Original Malayalam Text:</h4>
+                          <div className="trans-history-original-content">
+                            <p>{selectedHistoryItem.originalText}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="trans-history-attempts-section">
+                          <h4>Translation Attempts:</h4>
+                          {selectedHistoryItem.attempts.map((attempt, index) => (
+                            <div key={index} className="trans-history-attempt">
+                              <div 
+                                className="trans-history-attempt-header" 
+                                onClick={() => toggleExpand(attempt.attemptNumber)}
+                              >
+                                <div className="trans-history-attempt-title">
+                                  <div className="trans-attempt-title-main">
+                                    <strong>Attempt #{attempt.attemptNumber}</strong>
+                                    {attempt.score && (
+                                      <span 
+                                        className="trans-attempt-score"
+                                        style={{ backgroundColor: getScoreColor(attempt.score.totalScore) }}
+                                      >
+                                        {attempt.score.totalScore}/100
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="trans-history-attempt-date">{formatDate(attempt.submittedAt)}</span>
+                                </div>
+                                
+                                <div className="trans-attempt-expand-icon">
+                                  {expandedTranslation === attempt.attemptNumber ? (
+                                    <ChevronUp size={18} />
+                                  ) : (
+                                    <ChevronDown size={18} />
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {expandedTranslation === attempt.attemptNumber && (
+                                <div className="trans-history-attempt-content">
+                                  <p className="trans-attempt-text">{attempt.translatedText}</p>
+                                  
+                                  {attempt.score && (
+                                    <div className="trans-attempt-score-details">
+                                      <div 
+                                        className="trans-attempt-score-toggle" 
+                                        onClick={() => toggleScoreView(attempt.attemptNumber)}
+                                      >
+                                        <Star size={16} fill={getScoreColor(attempt.score.totalScore)} color={getScoreColor(attempt.score.totalScore)} />
+                                        <span>Score Details</span>
+                                        {expandedScoreView === attempt.attemptNumber ? (
+                                          <ChevronUp size={16} />
+                                        ) : (
+                                          <ChevronDown size={16} />
+                                        )}
+                                      </div>
+                                      
+                                      {expandedScoreView === attempt.attemptNumber && (
+                                        <div className="trans-attempt-score-breakdown">
+                                          <div className="trans-attempt-score-overview">
+                                            <div 
+                                              className="trans-attempt-score-circle" 
+                                              style={{ 
+                                                background: `conic-gradient(${getScoreColor(attempt.score.totalScore)} ${attempt.score.totalScore * 3.6}deg, #f0f0f0 ${attempt.score.totalScore * 3.6}deg 360deg)` 
+                                              }}
+                                            >
+                                              <div className="trans-attempt-score-inner">
+                                                <span className="trans-attempt-score-value">{attempt.score.totalScore}</span>
+                                                <span className="trans-attempt-score-max">/100</span>
+                                              </div>
+                                            </div>
+                                            <div className="trans-attempt-score-label">
+                                              {getScoreLabel(attempt.score.totalScore)}
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="trans-attempt-score-categories">
+                                            <div className="trans-score-category">
+                                              <div className="trans-score-category-header">
+                                                <span>Word Usage</span>
+                                                <span className="trans-category-score" style={{ color: getScoreColor(attempt.score.wordUsageScore) }}>
+                                                  {attempt.score.wordUsageScore}/100
+                                                </span>
+                                              </div>
+                                              <div className="trans-category-bar">
+                                                <div 
+                                                  className="trans-category-progress" 
+                                                  style={{ 
+                                                    width: `${attempt.score.wordUsageScore}%`,
+                                                    backgroundColor: getScoreColor(attempt.score.wordUsageScore)
+                                                  }}
+                                                ></div>
+                                              </div>
+                                            </div>
+                                            
+                                            <div className="trans-score-category">
+                                              <div className="trans-score-category-header">
+                                                <span>Sentence Structure</span>
+                                                <span className="trans-category-score" style={{ color: getScoreColor(attempt.score.structureScore) }}>
+                                                  {attempt.score.structureScore}/100
+                                                </span>
+                                              </div>
+                                              <div className="trans-category-bar">
+                                                <div 
+                                                  className="trans-category-progress" 
+                                                  style={{ 
+                                                    width: `${attempt.score.structureScore}%`,
+                                                    backgroundColor: getScoreColor(attempt.score.structureScore)
+                                                  }}
+                                                ></div>
+                                              </div>
+                                            </div>
+                                            
+                                            <div className="trans-score-category">
+                                              <div className="trans-score-category-header">
+                                                <span>Grammar</span>
+                                                <span className="trans-category-score" style={{ color: getScoreColor(attempt.score.grammarScore) }}>
+                                                  {attempt.score.grammarScore}/100
+                                                </span>
+                                              </div>
+                                              <div className="trans-category-bar">
+                                                <div 
+                                                  className="trans-category-progress" 
+                                                  style={{ 
+                                                    width: `${attempt.score.grammarScore}%`,
+                                                    backgroundColor: getScoreColor(attempt.score.grammarScore)
+                                                  }}
+                                                ></div>
+                                              </div>
+                                            </div>
+                                            
+                                            <div className="trans-score-category">
+                                              <div className="trans-score-category-header">
+                                                <span>Completeness</span>
+                                                <span className="trans-category-score" style={{ color: getScoreColor(attempt.score.completenessScore) }}>
+                                                  {attempt.score.completenessScore}/100
+                                                </span>
+                                              </div>
+                                              <div className="trans-category-bar">
+                                                <div 
+                                                  className="trans-category-progress" 
+                                                  style={{ 
+                                                    width: `${attempt.score.completenessScore}%`,
+                                                    backgroundColor: getScoreColor(attempt.score.completenessScore)
+                                                  }}
+                                                ></div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          
+                                          {attempt.score.feedback && (
+                                            <div className="trans-attempt-feedback">
+                                              <h5>Feedback:</h5>
+                                              <p>{attempt.score.feedback}</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="trans-history-actions">
+                          <button 
+                            className="trans-button trans-history-analyze-button"
+                            onClick={() => {
+                              // Load the last attempt into the current translation
+                              const lastAttempt = selectedHistoryItem.attempts[0];
+                              setTranslatedText(lastAttempt.translatedText);
+                              // Set up for analysis
+                              setTextData({
+                                _id: selectedHistoryItem.translationId,
+                                text: selectedHistoryItem.originalText
+                              });
+                              setActiveTab('translation');
+                              setIsSubmitted(true);
+                              setUserTranslationDoc({
+                                _id: selectedHistoryItem.userTranslationId,
+                                attempts: selectedHistoryItem.attempts
+                              });
+                              setCurrentAttempt(lastAttempt.attemptNumber);
+                              setMessageType('info');
+                              setMessage('Previous translation loaded. You can analyze or improve it.');
+                            }}
+                          >
+                            <ExternalLink size={16} />
+                            Continue Working on This Translation
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="trans-history-select-prompt">
+                        <div className="trans-history-select-icon">
+                          <ArrowLeft size={32} />
+                        </div>
+                        <h3>Select a Translation</h3>
+                        <p>Click on any translation from the list to view details and all previous attempts.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

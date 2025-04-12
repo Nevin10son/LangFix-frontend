@@ -16,7 +16,12 @@ import {
   Info,
   List,
   Edit,
-  Send
+  Send,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  Badge
 } from "lucide-react";
 import "./EssaySelection.css";
 
@@ -38,7 +43,13 @@ export default function EssayWriting() {
   const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutes in seconds
   const [timerActive, setTimerActive] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
-  const [pastEssays, setPastEssays] = useState([]);
+  
+  // History state variables
+  const [essayHistory, setEssayHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [expandedEssay, setExpandedEssay] = useState(null);
+  const [expandedAttempt, setExpandedAttempt] = useState(null);
+  
   const textareaRef = useRef(null);
   const navigate = useNavigate();
   
@@ -103,10 +114,10 @@ export default function EssayWriting() {
     fetchCategories();
   }, []);
 
-  // Fetch past essays when history tab is active
+  // Fetch essay history when history tab is active
   useEffect(() => {
     if (activeTab === "history") {
-      fetchPastEssays();
+      fetchEssayHistory();
     }
   }, [activeTab]);
 
@@ -117,33 +128,53 @@ export default function EssayWriting() {
     setScoreResult(null);
   };
 
-  // Fetch past essays
-  const fetchPastEssays = async () => {
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
+  // Fetch essay history using the new API
+  const fetchEssayHistory = async () => {
+    setLoadingHistory(true);
     try {
       const userId = sessionStorage.getItem("userid");
       const token = sessionStorage.getItem("token");
       
       if (!userId || !token) {
-        setMessage("User is not logged in. Please log in to view past essays.");
+        setMessage("User is not logged in. Please log in to view essay history.");
         setMessageType("error");
+        setLoadingHistory(false);
         return;
       }
       
       const response = await axios.get(
-        `http://localhost:5000/user-essays/${userId}`,
+        `http://localhost:5000/user-essay-history?userId=${userId}`,
         { headers: { token } }
       );
       
-      if (response.data.status === "Success") {
-        setPastEssays(response.data.essays);
+      if (response.data.Status === "Success") {
+        setEssayHistory(response.data.data);
+        if (response.data.data.length === 0) {
+          setMessage("No essay history found.");
+          setMessageType("info");
+        }
       } else {
-        setMessage("Failed to load past essays.");
+        setMessage("Failed to load essay history: " + response.data.message);
         setMessageType("error");
       }
     } catch (error) {
-      console.error("Error fetching past essays:", error);
-      setMessage("Failed to load past essays.");
+      console.error("Error fetching essay history:", error);
+      setMessage("Failed to load essay history.");
       setMessageType("error");
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -236,6 +267,105 @@ export default function EssayWriting() {
     }
     setMessage(`You can now improve your essay for attempt #${currentAttempt + 1}. Submit when ready.`);
     setMessageType("info");
+  };
+
+  // Toggle expanded essay in history view
+  const toggleEssayExpand = (essayId) => {
+    if (expandedEssay === essayId) {
+      setExpandedEssay(null);
+      setExpandedAttempt(null);
+    } else {
+      setExpandedEssay(essayId);
+      setExpandedAttempt(null);
+    }
+  };
+
+  // Toggle expanded attempt in history view
+  const toggleAttemptExpand = (attemptNumber) => {
+    if (expandedAttempt === attemptNumber) {
+      setExpandedAttempt(null);
+    } else {
+      setExpandedAttempt(attemptNumber);
+    }
+  };
+
+  // Load a historical essay attempt
+  const loadHistoricalEssay = (essay, attempt) => {
+    setRandomTopic({
+      _id: essay.topicId,
+      question: essay.topic,
+      category: essay.category
+    });
+    
+    // Find and set the category
+    const categoryObj = categories.find((cat) => cat.category === essay.category);
+    if (categoryObj) {
+      setSelectedCategory(categoryObj.category);
+    }
+    
+    setEssayText(attempt.essayText);
+    setIsSubmitted(true);
+    setIsEditing(false);
+    setCurrentAttempt(attempt.attemptNumber);
+    setEssaySubmission({
+      _id: essay._id,
+      attempts: essay.attempts
+    });
+    
+    // If the attempt has a score, load it
+    if (attempt.score) {
+      const scoreData = {
+        content: {
+          score: attempt.score.contentScore / 10,
+          title: "Content & Ideas",
+          feedback: "Analysis of content from previous scoring.",
+          strengths: [],
+          improvements: []
+        },
+        organization: {
+          score: attempt.score.organizationScore / 10,
+          title: "Organization & Structure",
+          feedback: "Analysis of organization from previous scoring.",
+          strengths: [],
+          improvements: []
+        },
+        language: {
+          score: attempt.score.languageScore / 10,
+          title: "Language Use & Vocabulary",
+          feedback: "Analysis of language from previous scoring.",
+          strengths: [],
+          improvements: []
+        },
+        coherence: {
+          score: attempt.score.grammarScore / 10,
+          title: "Grammar & Mechanics",
+          feedback: "Analysis of grammar from previous scoring.",
+          strengths: [],
+          improvements: []
+        },
+        total: attempt.score.totalScore,
+        overallFeedback: attempt.score.overallFeedback || "Score analysis from previous attempt."
+      };
+      
+      // If we have the detailed feedback object stored, use it
+      if (attempt.score.feedback) {
+        setScoreResult(attempt.score.feedback);
+      } else {
+        setScoreResult(scoreData);
+      }
+      
+      setActiveTab("score");
+    } else {
+      setActiveTab("write");
+      resetFeedback();
+    }
+    
+    // Reset timer states
+    setTimeLeft(15 * 60);
+    setTimerActive(false);
+    setTimerStarted(false);
+    
+    setMessage(`Loaded historical essay attempt #${attempt.attemptNumber} for review.`, "info");
   };
 
   // Handle essay submission
@@ -524,7 +654,7 @@ export default function EssayWriting() {
         <div className="essay-title">
           <PenTool className="essay-title-icon" />
           <h1>Essay Writing Workshop</h1>
-          {currentAttempt > 1 && (
+          {currentAttempt > 1 && activeTab !== "history" && (
             <span className="essay-attempt-indicator">Attempt #{currentAttempt}</span>
           )}
         </div>
@@ -537,63 +667,65 @@ export default function EssayWriting() {
         </div>
       </header>
 
-      {isSubmitted && (
-        <div className="essay-tabs">
-          <button 
-            className={`essay-tab ${activeTab === 'write' ? 'essay-tab-active' : ''}`}
-            onClick={() => setActiveTab('write')}
-          >
-            <PenTool size={16} />
-            Write Essay
-          </button>
-          <button 
-            className={`essay-tab ${activeTab === 'grammar' ? 'essay-tab-active' : ''}`}
-            onClick={() => {
-              if (aiAnalysis) {
-                setActiveTab('grammar');
-              } else {
-                handleAnalyze();
-              }
-            }}
-          >
-            <CheckCircle size={16} />
-            Grammar Analysis
-          </button>
-          <button 
-            className={`essay-tab ${activeTab === 'vocabulary' ? 'essay-tab-active' : ''}`}
-            onClick={() => {
-              if (vocabEnhancement) {
-                setActiveTab('vocabulary');
-              } else {
-                handleEnhanceVocabulary();
-              }
-            }}
-          >
-            <Book size={16} />
-            Vocabulary
-          </button>
-          <button 
-            className={`essay-tab ${activeTab === 'score' ? 'essay-tab-active' : ''}`}
-            onClick={() => {
-              if (scoreResult) {
-                setActiveTab('score');
-              } else {
-                handleScoreEssay();
-              }
-            }}
-          >
-            <Star size={16} />
-            Score
-          </button>
-          <button 
-            className={`essay-tab ${activeTab === 'history' ? 'essay-tab-active' : ''}`}
-            onClick={() => setActiveTab('history')}
-          >
-            <History size={16} />
-            History
-          </button>
-        </div>
-      )}
+      <div className="essay-tabs">
+        <button 
+          className={`essay-tab ${activeTab === 'write' ? 'essay-tab-active' : ''}`}
+          onClick={() => setActiveTab('write')}
+        >
+          <PenTool size={16} />
+          Write Essay
+        </button>
+        {isSubmitted && (
+          <>
+            <button 
+              className={`essay-tab ${activeTab === 'grammar' ? 'essay-tab-active' : ''}`}
+              onClick={() => {
+                if (aiAnalysis) {
+                  setActiveTab('grammar');
+                } else {
+                  handleAnalyze();
+                }
+              }}
+            >
+              <CheckCircle size={16} />
+              Grammar Analysis
+            </button>
+            <button 
+              className={`essay-tab ${activeTab === 'vocabulary' ? 'essay-tab-active' : ''}`}
+              onClick={() => {
+                if (vocabEnhancement) {
+                  setActiveTab('vocabulary');
+                } else {
+                  handleEnhanceVocabulary();
+                }
+              }}
+            >
+              <Book size={16} />
+              Vocabulary
+            </button>
+            <button 
+              className={`essay-tab ${activeTab === 'score' ? 'essay-tab-active' : ''}`}
+              onClick={() => {
+                if (scoreResult) {
+                  setActiveTab('score');
+                } else {
+                  handleScoreEssay();
+                }
+              }}
+            >
+              <Star size={16} />
+              Score
+            </button>
+          </>
+        )}
+        <button 
+          className={`essay-tab ${activeTab === 'history' ? 'essay-tab-active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          <History size={16} />
+          History
+        </button>
+      </div>
       
       {message && (
         <div className={`essay-message essay-message-${messageType}`}>
@@ -1233,54 +1365,199 @@ export default function EssayWriting() {
 </div>
 )}
  
+{/* New History Tab with Essay History Data */}
 {activeTab === 'history' && (
 <div className="essay-history-container">
   <div className="essay-history-header">
-    <h2><History size={20} /> Past Essays</h2>
-    <p>Review your previous essay submissions and scores</p>
+    <h2><History size={20} /> Your Essay History</h2>
+    <p>Review all your previous essay submissions and their scores</p>
   </div>
   
-  {pastEssays.length > 0 ? (
-    <div className="essay-history-grid">
-      {pastEssays.map((essay, index) => (
-        <div key={index} className="essay-history-item">
-          <div className="essay-history-topic">
-            <h3>{essay.topic}</h3>
-            <span className="essay-history-date">
-              {new Date(essay.timestamp).toLocaleDateString()}
-            </span>
-          </div>
-          <div className="essay-history-content">
-            <p>{essay.text.substring(0, 200)}...</p>
-          </div>
-          <div className="essay-history-footer">
-            <div className="essay-history-word-count">
-              <FileText size={14} />
-              <span>{countWords(essay.text)} words</span>
+  <div className="essay-history-content">
+    {loadingHistory ? (
+      <div className="essay-loading-container">
+        <div className="essay-loading-spinner"></div>
+        <p>Loading history...</p>
+      </div>
+    ) : essayHistory.length === 0 ? (
+      <div className="essay-no-history">
+        <AlertTriangle size={40} />
+        <p>You haven't submitted any essays yet.</p>
+        <button 
+          className="essay-button essay-start-button"
+          onClick={() => setActiveTab('write')}
+        >
+          <PenTool size={16} />
+          Start Writing
+        </button>
+      </div>
+    ) : (
+      <div className="essay-history-list">
+        {essayHistory.map((essay, index) => (
+          <div 
+            key={index} 
+            className={`essay-history-item ${expandedEssay === essay._id ? 'essay-history-expanded' : ''}`}
+          >
+            <div 
+              className="essay-history-item-header"
+              onClick={() => toggleEssayExpand(essay._id)}
+            >
+              <div className="essay-history-item-info">
+                <h3>{essay.topic}</h3>
+                <div className="essay-history-meta">
+                  <span className="essay-history-meta-item">
+                    <Calendar size={14} />
+                    {formatDate(essay.lastSubmittedAt)}
+                  </span>
+                  <span className="essay-history-meta-item">
+                    <Badge size={14} />
+                    {essay.category}
+                  </span>
+                  <span className="essay-history-meta-item">
+                    <FileText size={14} />
+                    {essay.attempts.length} {essay.attempts.length === 1 ? 'attempt' : 'attempts'}
+                  </span>
+                </div>
+              </div>
+              <button className="essay-expand-button">
+                {expandedEssay === essay._id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
             </div>
-            {essay.score && (
-              <div className="essay-history-score">
-                <Star size={14} />
-                <span>Score: {essay.score}/100</span>
+            
+            {expandedEssay === essay._id && (
+              <div className="essay-history-attempts">
+                {essay.attempts.map((attempt, attemptIndex) => (
+                  <div 
+                    key={attemptIndex} 
+                    className={`essay-history-attempt ${expandedAttempt === attempt.attemptNumber ? 'essay-attempt-expanded' : ''}`}
+                  >
+                    <div 
+                      className="essay-history-attempt-header"
+                      onClick={() => toggleAttemptExpand(attempt.attemptNumber)}
+                    >
+                      <div className="essay-attempt-info">
+                        <h4>Attempt #{attempt.attemptNumber}</h4>
+                        <span className="essay-attempt-date">{formatDate(attempt.submittedAt)}</span>
+                      </div>
+                      
+                      {attempt.score && (
+                        <div className="essay-attempt-score">
+                          <div 
+                            className="essay-score-badge"
+                            style={{ backgroundColor: getScoreColor(attempt.score.totalScore) }}
+                          >
+                            {attempt.score.totalScore}/100
+                          </div>
+                        </div>
+                      )}
+                      
+                      <button className="essay-expand-button">
+                        {expandedAttempt === attempt.attemptNumber ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
+                    </div>
+                    
+                    {expandedAttempt === attempt.attemptNumber && (
+                      <div className="essay-attempt-details">
+                        <div className="essay-attempt-text">
+                          <h5>Your Essay:</h5>
+                          <div className="essay-text-preview">
+                            <p>{attempt.essayText}</p>
+                          </div>
+                          <div className="essay-word-count essay-text-stats">
+                            <FileText size={14} />
+                            <span>{countWords(attempt.essayText)} words</span>
+                          </div>
+                        </div>
+                        
+                        {attempt.score && (
+                          <div className="essay-attempt-score-details">
+                            <h5>Score Breakdown:</h5>
+                            <div className="essay-score-categories">
+                              <div className="essay-score-category">
+                                <span>Content:</span>
+                                <div className="essay-mini-progress-bar">
+                                  <div 
+                                    className="essay-mini-progress-fill" 
+                                    style={{ 
+                                      width: `${attempt.score.contentScore}%`,
+                                      backgroundColor: getScoreColor(attempt.score.contentScore)
+                                    }}
+                                  ></div>
+                                  <span>{attempt.score.contentScore}/100</span>
+                                </div>
+                              </div>
+                              <div className="essay-score-category">
+                                <span>Organization:</span>
+                                <div className="essay-mini-progress-bar">
+                                  <div 
+                                    className="essay-mini-progress-fill" 
+                                    style={{ 
+                                      width: `${attempt.score.organizationScore}%`,
+                                      backgroundColor: getScoreColor(attempt.score.organizationScore)
+                                    }}
+                                  ></div>
+                                  <span>{attempt.score.organizationScore}/100</span>
+                                </div>
+                              </div>
+                              <div className="essay-score-category">
+                                <span>Language:</span>
+                                <div className="essay-mini-progress-bar">
+                                  <div 
+                                    className="essay-mini-progress-fill" 
+                                    style={{ 
+                                      width: `${attempt.score.languageScore}%`,
+                                      backgroundColor: getScoreColor(attempt.score.languageScore)
+                                    }}
+                                  ></div>
+                                  <span>{attempt.score.languageScore}/100</span>
+                                </div>
+                              </div>
+                              <div className="essay-score-category">
+                                <span>Grammar:</span>
+                                <div className="essay-mini-progress-bar">
+                                  <div 
+                                    className="essay-mini-progress-fill" 
+                                    style={{ 
+                                      width: `${attempt.score.grammarScore}%`,
+                                      backgroundColor: getScoreColor(attempt.score.grammarScore)
+                                    }}
+                                  ></div>
+                                  <span>{attempt.score.grammarScore}/100</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {attempt.score.overallFeedback && (
+                              <div className="essay-score-feedback">
+                                <h5>Feedback:</h5>
+                                <p>{attempt.score.overallFeedback}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        </div>
-      ))}
-    </div>
-  ) : (
-    <div className="essay-no-history">
-      <AlertTriangle size={40} />
-      <p>You haven't submitted any essays yet.</p>
-      <button 
-        className="essay-start-button"
+        ))}
+      </div>
+    )}
+    
+    <div className="essay-history-actions">
+      <button
+        className="essay-button essay-refresh-button"
         onClick={() => setActiveTab('write')}
       >
         <PenTool size={16} />
-        Start Writing
+        Write New Essay
       </button>
     </div>
-  )}
+  </div>
 </div>
 )}
 </div>
