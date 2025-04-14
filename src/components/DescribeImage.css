@@ -954,3 +954,109 @@
     grid-template-columns: 1fr;
   }
 }
+/* Add these new CSS rules to your existing DescribeImage.css file */
+
+/* Start container styles */
+.img-start-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: 2rem;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.img-start-container p {
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  color: #4b5563;
+  max-width: 80%;
+}
+
+.img-start-activity-button {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  font-size: 1.1rem !important;
+  padding: 0.75rem 2rem !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease-in-out !important;
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.25) !important;
+}
+
+.img-start-activity-button:hover {
+  background-color: #2563eb !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Attempt badge */
+.img-attempt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #3b82f6;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  margin-left: 1rem;
+}
+
+/* Advanced buttons container after submission */
+.img-advanced-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.img-advanced-buttons .img-button {
+  flex: 1 1 calc(50% - 0.75rem);
+  min-width: 180px;
+}
+
+/* New attempt button */
+.img-new-attempt-button {
+  background-color: #8b5cf6 !important;
+  color: white !important;
+}
+
+.img-new-attempt-button:hover {
+  background-color: #7c3aed !important;
+}
+
+/* Feedback actions container */
+.img-feedback-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  justify-content: center;
+}
+
+.img-feedback-actions .img-button {
+  min-width: 200px;
+}
+
+/* History item metadata */
+.img-history-meta {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.img-history-attempt {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #8b5cf6;
+  font-size: 0.85rem;
+}
+
+.img-history-attempt svg {
+  color: #8b5cf6;
+}

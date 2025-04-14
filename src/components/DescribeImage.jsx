@@ -16,7 +16,8 @@ import {
   RefreshCw,
   AlertCircle,
   Info,
-  Sparkles
+  Sparkles,
+  Play
 } from "lucide-react";
 import "./DescribeImage.css";
 
@@ -28,24 +29,17 @@ export default function DescribeImage() {
   const [imageError, setImageError] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [vocabularyEnhancement, setVocabularyEnhancement] = useState(null);
-  const [scoreAnalysis, setScoreAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [vocabLoading, setVocabLoading] = useState(false);
-  const [scoreLoading, setScoreLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(10 * 60); // 10 minutes in seconds
   const [timerActive, setTimerActive] = useState(false);
-  const [activeTab, setActiveTab] = useState("description"); // description, grammar, vocabulary, score, history
+  const [activeTab, setActiveTab] = useState("description"); // description, grammar, vocabulary, history
   const [pastActivities, setPastActivities] = useState([]);
+  const [isStarted, setIsStarted] = useState(false);
+  const [currentAttempt, setCurrentAttempt] = useState(1);
+  const [submittedOnce, setSubmittedOnce] = useState(false);
   const textareaRef = useRef(null);
   const navigate = useNavigate();
-
-  // Start timer when image data is loaded
-  useEffect(() => {
-    if (imageData && !timerActive) {
-      setTimerActive(true);
-      setTimeLeft(10 * 60);
-    }
-  }, [imageData]);
 
   // Timer logic
   useEffect(() => {
@@ -85,6 +79,19 @@ export default function DescribeImage() {
     return true;
   }, [navigate]);
 
+  const startActivity = () => {
+    if (!imageData) return;
+    
+    setIsStarted(true);
+    setTimerActive(true);
+    setTimeLeft(10 * 60);
+    
+    if (textareaRef.current) {
+      textareaRef.current.disabled = false;
+      textareaRef.current.focus();
+    }
+  };
+
   const fetchRandomImage = useCallback(async () => {
     if (!verifyToken()) return;
     setLoading(true);
@@ -92,20 +99,22 @@ export default function DescribeImage() {
       setImageError(false);
       setAiAnalysis(null);
       setVocabularyEnhancement(null);
-      setScoreAnalysis(null);
       setMessage("");
       setMessageType("info");
+      setIsStarted(false);
+      setSubmittedOnce(false);
+      setCurrentAttempt(1);
+      
       const response = await axios.get("http://localhost:5000/random-image-question", {
         headers: { token: sessionStorage.getItem("token") },
       });
       console.log("Fetched image data:", response.data);
       setImageData(response.data);
       setDescription("");
-      setTimerActive(true);
-      setTimeLeft(10 * 60);
       setActiveTab("description");
+      
       if (textareaRef.current) {
-        textareaRef.current.disabled = false;
+        textareaRef.current.disabled = true;
       }
     } catch (error) {
       console.error("Error fetching image question:", error);
@@ -166,6 +175,7 @@ export default function DescribeImage() {
           userId: sessionStorage.getItem("userid"),
           imageId: imageData._id,
           description,
+          attempt: currentAttempt
         },
         {
           headers: { token: sessionStorage.getItem("token") },
@@ -174,7 +184,9 @@ export default function DescribeImage() {
 
       setMessage("Your description has been submitted successfully!");
       setMessageType("success");
-      fetchRandomImage();
+      setSubmittedOnce(true);
+      
+      // Don't fetch a new image, allow users to continue with same image for analysis
     } catch (error) {
       console.error("Error submitting description:", error);
       setMessage("Failed to submit description. Please try again.");
@@ -261,42 +273,17 @@ export default function DescribeImage() {
     }
   };
 
-  const scoreDescription = async () => {
-    if (!description.trim()) {
-      setMessage("Please enter a description before scoring!");
-      setMessageType("error");
-      return;
-    }
-
-    if (!verifyToken()) return;
-
-    setScoreLoading(true);
-    try {
-      const response = await axios.post(
-        "http://localhost:5000/score-description",
-        {
-          imageDescription: imageData.imageDescription,
-          userDescription: description,
-        },
-        { headers: { token: sessionStorage.getItem("token") } }
-      );
-
-      console.log("Score Response:", response.data);
-      if (response.data.Status === "Success") {
-        setScoreAnalysis(response.data.feedback);
-        setMessage("Description scoring completed successfully!");
-        setMessageType("success");
-        setActiveTab("score");
-      } else {
-        setMessage("Failed to score description: " + (response.data.message || "Unknown error"));
-        setMessageType("error");
-      }
-    } catch (error) {
-      console.error("Error scoring description:", error);
-      setMessage("Failed to score description. Please try again.");
-      setMessageType("error");
-    } finally {
-      setScoreLoading(false);
+  const startNewAttempt = () => {
+    setCurrentAttempt(prev => prev + 1);
+    setActiveTab("description");
+    setDescription("");
+    setIsStarted(true);
+    setTimerActive(true);
+    setTimeLeft(10 * 60);
+    
+    if (textareaRef.current) {
+      textareaRef.current.disabled = false;
+      textareaRef.current.focus();
     }
   };
 
@@ -344,13 +331,18 @@ export default function DescribeImage() {
         <div className="img-title">
           <Image className="img-title-icon" />
           <h1>Image Description Challenge</h1>
+          {currentAttempt > 1 && (
+            <span className="img-attempt-badge">Attempt #{currentAttempt}</span>
+          )}
         </div>
         
         <div className="img-header-right">
-          <div className="img-timer">
-            <Clock size={18} />
-            <span className={timeLeft < 60 ? "img-timer-warning" : ""}>{formatTime(timeLeft)}</span>
-          </div>
+          {isStarted && (
+            <div className="img-timer">
+              <Clock size={18} />
+              <span className={timeLeft < 60 ? "img-timer-warning" : ""}>{formatTime(timeLeft)}</span>
+            </div>
+          )}
         </div>
       </header>
 
@@ -380,15 +372,6 @@ export default function DescribeImage() {
             Vocabulary
           </button>
         )}
-        {scoreAnalysis && (
-          <button 
-            className={`img-tab ${activeTab === 'score' ? 'img-tab-active' : ''}`}
-            onClick={() => setActiveTab('score')}
-          >
-            <Star size={16} />
-            Score
-          </button>
-        )}
         <button 
           className={`img-tab ${activeTab === 'history' ? 'img-tab-active' : ''}`}
           onClick={() => setActiveTab('history')}
@@ -414,7 +397,7 @@ export default function DescribeImage() {
             <Info size={18} />
             <div>
               <h3>Task Instructions</h3>
-              <p>Examine the image carefully and provide a detailed description based on the question. You have 10 minutes to complete this task. Focus on accuracy, grammar, and vocabulary in your response.</p>
+              <p>Examine the image carefully and provide a detailed description based on the question. You have 10 minutes to complete this task once you start. Focus on accuracy, grammar, and vocabulary in your response.</p>
             </div>
           </div>
 
@@ -450,68 +433,86 @@ export default function DescribeImage() {
               </div>
 
               <div className="img-right-panel">
-                <div className="img-textarea-container">
-                  <textarea
-                    ref={textareaRef}
-                    className="img-textarea"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Write your description here..."
-                    disabled={timeLeft === 0}
-                    spellCheck="false"
-                  />
-                  <div className="img-word-count">
-                    <FileText size={14} />
-                    <span>{countWords(description)} words</span>
+                {!isStarted ? (
+                  <div className="img-start-container">
+                    <p>Click the Start button when you're ready. You'll have 10 minutes to complete your description.</p>
+                    <button 
+                      className="img-button img-start-activity-button"
+                      onClick={startActivity}
+                    >
+                      <Play size={16} />
+                      Start Activity
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="img-textarea-container">
+                      <textarea
+                        ref={textareaRef}
+                        className="img-textarea"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Write your description here..."
+                        disabled={!isStarted || timeLeft === 0}
+                        spellCheck="false"
+                      />
+                      <div className="img-word-count">
+                        <FileText size={14} />
+                        <span>{countWords(description)} words</span>
+                      </div>
+                    </div>
 
-                <div className="img-buttons">
-                  <button 
-                    className="img-button img-submit-button"
-                    onClick={submitDescription}
-                    disabled={loading || timeLeft === 0}
-                  >
-                    <CheckCircle size={16} />
-                    {loading ? 'Submitting...' : 'Submit Description'}
-                  </button>
-                  
-                  <button 
-                    className="img-button img-analyze-button"
-                    onClick={analyzeWithAI}
-                    disabled={loading || timeLeft === 0}
-                  >
-                    <CheckCircle size={16} />
-                    {loading ? 'Analyzing...' : 'Grammar Analysis'}
-                  </button>
-                  
-                  <button 
-                    className="img-button img-vocab-button"
-                    onClick={enhanceVocabulary}
-                    disabled={vocabLoading || timeLeft === 0}
-                  >
-                    <Book size={16} />
-                    {vocabLoading ? 'Enhancing...' : 'Enhance Vocabulary'}
-                  </button>
-                  
-                  <button 
-                    className="img-button img-score-button"
-                    onClick={scoreDescription}
-                    disabled={scoreLoading || timeLeft === 0}
-                  >
-                    <Star size={16} />
-                    {scoreLoading ? 'Scoring...' : 'Score Description'}
-                  </button>
-                  
-                  <button 
-                    className="img-button img-new-button"
-                    onClick={fetchRandomImage}
-                    disabled={loading}
-                  >
-                    <RefreshCw size={16} />
-                    New Image
-                  </button>
-                </div>
+                    <div className="img-buttons">
+                      {!submittedOnce ? (
+                        <button 
+                          className="img-button img-submit-button"
+                          onClick={submitDescription}
+                          disabled={loading || timeLeft === 0}
+                        >
+                          <CheckCircle size={16} />
+                          {loading ? 'Submitting...' : 'Submit Description'}
+                        </button>
+                      ) : (
+                        <div className="img-advanced-buttons">
+                          <button 
+                            className="img-button img-analyze-button"
+                            onClick={analyzeWithAI}
+                            disabled={loading || timeLeft === 0}
+                          >
+                            <CheckCircle size={16} />
+                            {loading ? 'Analyzing...' : 'Grammar Analysis'}
+                          </button>
+                          
+                          <button 
+                            className="img-button img-vocab-button"
+                            onClick={enhanceVocabulary}
+                            disabled={vocabLoading || timeLeft === 0}
+                          >
+                            <Book size={16} />
+                            {vocabLoading ? 'Enhancing...' : 'Enhance Vocabulary'}
+                          </button>
+                          
+                          <button 
+                            className="img-button img-new-attempt-button"
+                            onClick={startNewAttempt}
+                          >
+                            <RefreshCw size={16} />
+                            New Attempt
+                          </button>
+                          
+                          <button 
+                            className="img-button img-new-button"
+                            onClick={fetchRandomImage}
+                            disabled={loading}
+                          >
+                            <Image size={16} />
+                            New Image
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -593,6 +594,24 @@ export default function DescribeImage() {
               )}
             </div>
           </div>
+          
+          <div className="img-feedback-actions">
+            <button 
+              className="img-button img-new-attempt-button"
+              onClick={startNewAttempt}
+            >
+              <RefreshCw size={16} />
+              Try Again (New Attempt)
+            </button>
+            
+            <button 
+              className="img-button img-new-button"
+              onClick={fetchRandomImage}
+            >
+              <Image size={16} />
+              Try New Image
+            </button>
+          </div>
         </div>
       )}
       
@@ -666,67 +685,23 @@ export default function DescribeImage() {
               </div>
             )}
           </div>
-        </div>
-      )}
-      
-      {activeTab === 'score' && scoreAnalysis && (
-        <div className="img-analysis-container">
-          <div className="img-analysis-header">
-            <h2><Star size={20} /> Description Score</h2>
-            <p>Evaluation of your description based on accuracy, completeness, and language quality</p>
-          </div>
           
-          <div className="img-score-overview">
-            <div className="img-score-circle" style={{ 
-              background: `conic-gradient(${getScoreColor(scoreAnalysis.total)} ${scoreAnalysis.total * 3.6}deg, #f0f0f0 ${scoreAnalysis.total * 3.6}deg 360deg)` 
-            }}>
-              <div className="img-score-inner">
-                <span className="img-score-value">{scoreAnalysis.total}</span>
-                <span className="img-score-max">/100</span>
-              </div>
-            </div>
-            <div className="img-score-feedback">
-              <h3>Overall Feedback</h3>
-              <p>{scoreAnalysis.overall}</p>
-            </div>
-          </div>
-          
-          <div className="img-score-criteria">
-            <div className="img-score-criterion">
-              <div className="img-criterion-header">
-                <h4>Accuracy</h4>
-                <span className="img-criterion-weight">30%</span>
-              </div>
-              <p>{scoreAnalysis.accuracy.feedback}</p>
-              {renderProgressBar(scoreAnalysis.accuracy.score, 10)}
-            </div>
+          <div className="img-feedback-actions">
+            <button 
+              className="img-button img-new-attempt-button"
+              onClick={startNewAttempt}
+            >
+              <RefreshCw size={16} />
+              Try Again (New Attempt)
+            </button>
             
-            <div className="img-score-criterion">
-              <div className="img-criterion-header">
-                <h4>Completeness</h4>
-                <span className="img-criterion-weight">30%</span>
-              </div>
-              <p>{scoreAnalysis.completeness.feedback}</p>
-              {renderProgressBar(scoreAnalysis.completeness.score, 10)}
-            </div>
-            
-            <div className="img-score-criterion">
-              <div className="img-criterion-header">
-                <h4>Grammar</h4>
-                <span className="img-criterion-weight">20%</span>
-              </div>
-              <p>{scoreAnalysis.grammar.feedback}</p>
-              {renderProgressBar(scoreAnalysis.grammar.score, 10)}
-            </div>
-            
-            <div className="img-score-criterion">
-              <div className="img-criterion-header">
-                <h4>Vocabulary</h4>
-                <span className="img-criterion-weight">20%</span>
-              </div>
-              <p>{scoreAnalysis.vocabulary.feedback}</p>
-              {renderProgressBar(scoreAnalysis.vocabulary.score, 10)}
-            </div>
+            <button 
+              className="img-button img-new-button"
+              onClick={fetchRandomImage}
+            >
+              <Image size={16} />
+              Try New Image
+            </button>
           </div>
         </div>
       )}
@@ -735,7 +710,7 @@ export default function DescribeImage() {
         <div className="img-history-container">
           <div className="img-history-header">
             <h2><Calendar size={20} /> Past Activities</h2>
-            <p>Review your previous image descriptions and scores</p>
+            <p>Review your previous image descriptions</p>
           </div>
           
           {pastActivities.length > 0 ? (
@@ -753,18 +728,20 @@ export default function DescribeImage() {
                     />
                   </div>
                   <div className="img-history-details">
-                    <div className="img-history-date">
-                      <Calendar size={14} />
-                      <span>{new Date(activity.timestamp).toLocaleString()}</span>
+                    <div className="img-history-meta">
+                      <div className="img-history-date">
+                        <Calendar size={14} />
+                        <span>{new Date(activity.timestamp).toLocaleString()}</span>
+                      </div>
+                      {activity.attempt && (
+                        <div className="img-history-attempt">
+                          <RefreshCw size={14} />
+                          <span>Attempt #{activity.attempt}</span>
+                        </div>
+                      )}
                     </div>
                     <h4>{activity.question}</h4>
                     <p>{activity.description.substring(0, 100)}...</p>
-                    {activity.score && (
-                      <div className="img-history-score">
-                        <Star size={14} />
-                        <span>Score: {activity.score}/100</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}

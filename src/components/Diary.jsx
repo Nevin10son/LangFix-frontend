@@ -8,30 +8,24 @@ import {
   XCircle, 
   ChevronLeft, 
   ChevronRight,
-  Award,
   Feather,
-  Target,
-  ArrowUp,
   Bookmark,
   Settings,
   User,
   Moon,
   Sun,
-  ChevronUp
+  ChevronUp,
+  ArrowUp
 } from "lucide-react";
 import "./Diary.css";
 
 const Diary = () => {
   const navigate = useNavigate();
-  // Fix date timezone issues by setting the hours to 12 (mid-day) before converting to ISO string
   const todayTemp = new Date();
-  todayTemp.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+  todayTemp.setHours(12, 0, 0, 0);
   const today = todayTemp.toISOString().split("T")[0];
   const [selectedDate, setSelectedDate] = useState(today);
   const [entry, setEntry] = useState({
-    gratitude: "",
-    goals: "",
-    improvement: "",
     narrative: "",
   });
   const [prompts, setPrompts] = useState([]);
@@ -51,11 +45,9 @@ const Diary = () => {
     fetchDiaryEntry(selectedDate);
     fetchCompletedDates();
     
-    // Check user's preferred color scheme
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     setIsDarkMode(prefersDark);
     
-    // Apply theme to body
     document.body.className = prefersDark ? "dark-theme" : "";
   }, []);
   
@@ -94,20 +86,18 @@ const Diary = () => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     
-    // Get first day of the month
     const firstDay = new Date(year, month, 1);
-    firstDay.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+    firstDay.setHours(12, 0, 0, 0);
     
     const lastDay = new Date(year, month + 1, 0);
-    lastDay.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+    lastDay.setHours(12, 0, 0, 0);
     
     const days = [];
     const dayOfWeek = firstDay.getDay();
     
-    // Add previous month days
     for (let i = dayOfWeek; i > 0; i--) {
       const prevDate = new Date(year, month, 1 - i);
-      prevDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+      prevDate.setHours(12, 0, 0, 0);
       days.push({
         date: prevDate,
         isCurrentMonth: false,
@@ -115,10 +105,9 @@ const Diary = () => {
       });
     }
     
-    // Add current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const currentDate = new Date(year, month, i);
-      currentDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+      currentDate.setHours(12, 0, 0, 0);
       days.push({
         date: currentDate,
         isCurrentMonth: true,
@@ -126,12 +115,11 @@ const Diary = () => {
       });
     }
     
-    // Add next month days to complete the row
     const remainingDays = 7 - (days.length % 7);
     if (remainingDays < 7) {
       for (let i = 1; i <= remainingDays; i++) {
         const nextDate = new Date(year, month + 1, i);
-        nextDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+        nextDate.setHours(12, 0, 0, 0);
         days.push({
           date: nextDate,
           isCurrentMonth: false,
@@ -140,7 +128,6 @@ const Diary = () => {
       }
     }
     
-    // Group days into weeks
     const weeks = [];
     for (let i = 0; i < days.length; i += 7) {
       weeks.push(days.slice(i, i + 7));
@@ -170,13 +157,13 @@ const Diary = () => {
       });
 
       if (response.data.Status === "No Entry Found") {
-        setEntry({ gratitude: "", goals: "", improvement: "", narrative: "" });
+        setEntry({ narrative: "" });
         setGrammarFeedback({});
         setVocabFeedback({});
         setScoreFeedback({});
         fetchRandomPrompts();
       } else {
-        setEntry(response.data);
+        setEntry({ narrative: response.data.narrative || "" });
 
         const savedPrompts = response.data.prompts || [];
         setPrompts(savedPrompts);
@@ -187,7 +174,6 @@ const Diary = () => {
         });
         setPromptResponses(formattedResponses);
 
-        // Clear feedback for a new entry
         setGrammarFeedback({});
         setVocabFeedback({});
         setScoreFeedback({});
@@ -254,7 +240,7 @@ const Diary = () => {
           userid,
           date: selectedDate,
           prompts: formattedPrompts,
-          ...entry,
+          narrative: entry.narrative,
         },
         {
           headers: { token },
@@ -264,7 +250,6 @@ const Diary = () => {
       setMessage("✅ " + response.data.Status);
       setTimeout(() => setMessage(""), 3000);
       
-      // Refresh completed dates
       fetchCompletedDates();
     } catch (error) {
       console.error("Error saving diary entry", error);
@@ -312,7 +297,6 @@ const Diary = () => {
           }));
         }
         
-        // Make analysis visible
         setAnalysisVisible(prev => ({
           ...prev,
           [sectionId]: true
@@ -349,7 +333,6 @@ const Diary = () => {
           [sectionId]: response.data.score
         }));
         
-        // Make analysis visible
         setAnalysisVisible(prev => ({
           ...prev,
           [sectionId]: true
@@ -443,13 +426,12 @@ const Diary = () => {
   const renderScoreFeedback = (feedback) => {
     if (!feedback) return null;
     
-    // Create color based on score
     const getScoreColor = (score) => {
-      if (score >= 45) return '#4CAF50'; // Green for high scores
-      if (score >= 35) return '#8BC34A'; // Light green
-      if (score >= 25) return '#CDDC39'; // Lime
-      if (score >= 15) return '#FFC107'; // Amber
-      return '#F44336'; // Red for low scores
+      if (score >= 45) return '#4CAF50';
+      if (score >= 35) return '#8BC34A';
+      if (score >= 25) return '#CDDC39';
+      if (score >= 15) return '#FFC107';
+      return '#F44336';
     };
     
     const scoreColor = getScoreColor(feedback.total);
@@ -502,40 +484,33 @@ const Diary = () => {
     );
   };
 
-  // Check if date has entry in completedDates array
   const isDateCompleted = (dateString) => {
     return completedDates.includes(dateString);
   };
 
-  // Check if date is the current viewing date
   const isSelectedDate = (dateString) => {
     return dateString === selectedDate;
   };
 
-  // Check if date is today
   const isToday = (dateString) => {
     return dateString === today;
   };
 
-  // Get month and year display for calendar header
   const getMonthName = (date) => {
     return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date);
   };
 
-  // Toggle dark mode
   const toggleTheme = () => {
     setIsDarkMode(prev => !prev);
     document.body.className = !isDarkMode ? "dark-theme" : "";
   };
 
-  // Handle date click in calendar
   const handleDateClick = (dateString, isPastOrToday) => {
     if (isPastOrToday) {
       setSelectedDate(dateString);
     }
   };
 
-  // Generate calendar grid
   const calendarWeeks = getCalendarDays();
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -552,7 +527,6 @@ const Diary = () => {
           <p>{new Date(selectedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
         </div>
         
-        {/* Always visible enhanced calendar */}
         <div className="journal-calendar-container">
           <div className="journal-calendar">
             <div className="journal-calendar-header">
@@ -661,12 +635,7 @@ const Diary = () => {
                     >
                       Enhance Vocabulary
                     </button>
-                    <button 
-                      className="journal-button journal-score-button"
-                      onClick={() => scoreText(promptResponses[promptId], "Prompt", sectionId, prompt.question)}
-                    >
-                      Score Writing
-                    </button>
+                    
                   </div>
                   
                   {(grammarFeedback[sectionId] || vocabFeedback[sectionId] || scoreFeedback[sectionId]) && (
@@ -691,239 +660,60 @@ const Diary = () => {
             );
           })}
           
-          {/* Main diary sections */}
+          {/* Narrative section */}
           <div className="journal-section-header">
-            <h3><Book size={20} /> Diary Entries</h3>
+            <h3><Book size={20} /> Narrative</h3>
           </div>
           
-          <div className="journal-grid">
-            {/* Gratitude section */}
-            <div className="journal-card">
-              <div className="journal-card-header">
-                <h4><Award size={16} className="journal-icon" /> Gratitude</h4>
-              </div>
-              
-              <textarea 
-                className="journal-textarea" 
-                name="gratitude" 
-                value={entry.gratitude} 
-                onChange={handleChange} 
-                placeholder="What are you grateful for today?" 
-                spellCheck="false"
-              ></textarea>
-              
-              <div className="journal-actions">
-                <div className="journal-buttons">
-                  <button 
-                    className="journal-button journal-grammar-button"
-                    onClick={() => analyzeText(entry.gratitude, "grammar", "Gratitude", "gratitude")}
-                  >
-                    Analyze Grammar
-                  </button>
-                  <button 
-                    className="journal-button journal-vocab-button"
-                    onClick={() => analyzeText(entry.gratitude, "vocabulary", "Gratitude", "gratitude")}
-                  >
-                    Enhance Vocabulary
-                  </button>
-                  <button 
-                    className="journal-button journal-score-button"
-                    onClick={() => scoreText(entry.gratitude, "Gratitude", "gratitude")}
-                  >
-                    Score Writing
-                  </button>
-                </div>
+          <div className="journal-card">
+            <div className="journal-card-header">
+              <h4><Feather size={16} className="journal-icon" /> Narrative</h4>
+            </div>
+            
+            <textarea 
+              className="journal-textarea" 
+              name="narrative" 
+              value={entry.narrative} 
+              onChange={handleChange} 
+              placeholder="Write about your day..." 
+              spellCheck="false"
+            ></textarea>
+            
+            <div className="journal-actions">
+              <div className="journal-buttons">
+                <button 
+                  className="journal-button journal-grammar-button"
+                  onClick={() => analyzeText(entry.narrative, "grammar", "Narrative", "narrative")}
+                >
+                  Analyze Grammar
+                </button>
+                <button 
+                  className="journal-button journal-vocab-button"
+                  onClick={() => analyzeText(entry.narrative, "vocabulary", "Narrative", "narrative")}
+                >
+                  Enhance Vocabulary
+                </button>
                 
-                {(grammarFeedback.gratitude || vocabFeedback.gratitude || scoreFeedback.gratitude) && (
-                  <button 
-                    className="journal-toggle-analysis"
-                    onClick={() => toggleAnalysis("gratitude")}
-                  >
-                    {analysisVisible.gratitude ? 'Hide Analysis' : 'Show Analysis'}
-                    <ArrowUp className={`journal-toggle-icon ${analysisVisible.gratitude ? 'journal-toggle-rotated' : ''}`} size={16} />
-                  </button>
-                )}
               </div>
               
-              {analysisVisible.gratitude && (
-                <div className="journal-analysis">
-                  {renderGrammarFeedback(grammarFeedback.gratitude)}
-                  {renderVocabFeedback(vocabFeedback.gratitude)}
-                  {renderScoreFeedback(scoreFeedback.gratitude)}
-                </div>
+              {(grammarFeedback.narrative || vocabFeedback.narrative || scoreFeedback.narrative) && (
+                <button 
+                  className="journal-toggle-analysis"
+                  onClick={() => toggleAnalysis("narrative")}
+                >
+                  {analysisVisible.narrative ? 'Hide Analysis' : 'Show Analysis'}
+                  <ArrowUp className={`journal-toggle-icon ${analysisVisible.narrative ? 'journal-toggle-rotated' : ''}`} size={16} />
+                </button>
               )}
             </div>
             
-            {/* Improvement section */}
-            <div className="journal-card">
-              <div className="journal-card-header">
-                <h4><Target size={16} className="journal-icon" /> Improvement</h4>
+            {analysisVisible.narrative && (
+              <div className="journal-analysis">
+                {renderGrammarFeedback(grammarFeedback.narrative)}
+                {renderVocabFeedback(vocabFeedback.narrative)}
+                {renderScoreFeedback(scoreFeedback.narrative)}
               </div>
-              
-              <textarea 
-                className="journal-textarea" 
-                name="improvement" 
-                value={entry.improvement} 
-                onChange={handleChange} 
-                placeholder="What would you like to improve?" 
-                spellCheck="false"
-              ></textarea>
-              
-              <div className="journal-actions">
-                <div className="journal-buttons">
-                  <button 
-                    className="journal-button journal-grammar-button"
-                    onClick={() => analyzeText(entry.improvement, "grammar", "Improvement", "improvement")}
-                  >
-                    Analyze Grammar
-                  </button>
-                  <button 
-                    className="journal-button journal-vocab-button"
-                    onClick={() => analyzeText(entry.improvement, "vocabulary", "Improvement", "improvement")}
-                  >
-                    Enhance Vocabulary
-                  </button>
-                  <button 
-                    className="journal-button journal-score-button"
-                    onClick={() => scoreText(entry.improvement, "Improvement", "improvement")}
-                  >
-                    Score Writing
-                  </button>
-                </div>
-                
-                {(grammarFeedback.improvement || vocabFeedback.improvement || scoreFeedback.improvement) && (
-                  <button 
-                    className="journal-toggle-analysis"
-                    onClick={() => toggleAnalysis("improvement")}
-                  >
-                    {analysisVisible.improvement ? 'Hide Analysis' : 'Show Analysis'}
-                    <ArrowUp className={`journal-toggle-icon ${analysisVisible.improvement ? 'journal-toggle-rotated' : ''}`} size={16} />
-                  </button>
-                )}
-              </div>
-              
-              {analysisVisible.improvement && (
-                <div className="journal-analysis">
-                  {renderGrammarFeedback(grammarFeedback.improvement)}
-                  {renderVocabFeedback(vocabFeedback.improvement)}
-                  {renderScoreFeedback(scoreFeedback.improvement)}
-                </div>
-              )}
-            </div>
-            
-            {/* Goals section */}
-            <div className="journal-card">
-              <div className="journal-card-header">
-                <h4><Target size={16} className="journal-icon" /> Goals</h4>
-              </div>
-              
-              <textarea 
-                className="journal-textarea" 
-                name="goals" 
-                value={entry.goals} 
-                onChange={handleChange} 
-                placeholder="What are your goals for tomorrow?" 
-                spellCheck="false"
-              ></textarea>
-              
-              <div className="journal-actions">
-                <div className="journal-buttons">
-                  <button 
-                    className="journal-button journal-grammar-button"
-                    onClick={() => analyzeText(entry.goals, "grammar", "Goals", "goals")}
-                  >
-                    Analyze Grammar
-                  </button>
-                  <button 
-                    className="journal-button journal-vocab-button"
-                    onClick={() => analyzeText(entry.goals, "vocabulary", "Goals", "goals")}
-                  >
-                    Enhance Vocabulary
-                  </button>
-                  <button 
-                    className="journal-button journal-score-button"
-                    onClick={() => scoreText(entry.goals, "Goals", "goals")}
-                  >
-                    Score Writing
-                  </button>
-                </div>
-                
-                {(grammarFeedback.goals || vocabFeedback.goals || scoreFeedback.goals) && (
-                  <button 
-                    className="journal-toggle-analysis"
-                    onClick={() => toggleAnalysis("goals")}
-                  >
-                    {analysisVisible.goals ? 'Hide Analysis' : 'Show Analysis'}
-                    <ArrowUp className={`journal-toggle-icon ${analysisVisible.goals ? 'journal-toggle-rotated' : ''}`} size={16} />
-                  </button>
-                )}
-              </div>
-              
-              {analysisVisible.goals && (
-                <div className="journal-analysis">
-                  {renderGrammarFeedback(grammarFeedback.goals)}
-                  {renderVocabFeedback(vocabFeedback.goals)}
-                  {renderScoreFeedback(scoreFeedback.goals)}
-                </div>
-              )}
-            </div>
-            
-            {/* Narrative section */}
-            <div className="journal-card">
-              <div className="journal-card-header">
-                <h4><Feather size={16} className="journal-icon" /> Narrative</h4>
-              </div>
-              
-              <textarea 
-                className="journal-textarea" 
-                name="narrative" 
-                value={entry.narrative} 
-                onChange={handleChange} 
-                placeholder="Write about your day..." 
-                spellCheck="false"
-              ></textarea>
-              
-              <div className="journal-actions">
-                <div className="journal-buttons">
-                  <button 
-                    className="journal-button journal-grammar-button"
-                    onClick={() => analyzeText(entry.narrative, "grammar", "Narrative", "narrative")}
-                  >
-                    Analyze Grammar
-                  </button>
-                  <button 
-                    className="journal-button journal-vocab-button"
-                    onClick={() => analyzeText(entry.narrative, "vocabulary", "Narrative", "narrative")}
-                  >
-                    Enhance Vocabulary
-                  </button>
-                  <button 
-                    className="journal-button journal-score-button"
-                    onClick={() => scoreText(entry.narrative, "Narrative", "narrative")}
-                  >
-                    Score Writing
-                  </button>
-                </div>
-                
-                {(grammarFeedback.narrative || vocabFeedback.narrative || scoreFeedback.narrative) && (
-                  <button 
-                    className="journal-toggle-analysis"
-                    onClick={() => toggleAnalysis("narrative")}
-                  >
-                    {analysisVisible.narrative ? 'Hide Analysis' : 'Show Analysis'}
-                    <ArrowUp className={`journal-toggle-icon ${analysisVisible.narrative ? 'journal-toggle-rotated' : ''}`} size={16} />
-                  </button>
-                )}
-              </div>
-              
-              {analysisVisible.narrative && (
-                <div className="journal-analysis">
-                  {renderGrammarFeedback(grammarFeedback.narrative)}
-                  {renderVocabFeedback(vocabFeedback.narrative)}
-                  {renderScoreFeedback(scoreFeedback.narrative)}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
         
